@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://www.strava.com; worker-src blob:; img-src data: blob:; media-src data: blob:; base-uri 'none'; form-action 'none'">
+<title>Trainer</title>
+<style>
+:root{
+  /* Apple-style dark palette (system colours) */
+  --ink:#000; --slab:#1c1c1e; --slab2:#2c2c2e; --hair:#2c2c2e; --paper:#fff; --mute:#8e8e93;
+  --under:#0a84ff; --on:#30d158; --over:#ff453a; --warn:#ffd60a;
+  --z1:#8e8e93; --z2:#0a84ff; --z3:#30d158; --z4:#ff9f0a; --z5:#ff453a;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --state:var(--mute);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink);color:var(--paper);
+  font:400 16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+button{
+  font:inherit;font-size:14px;font-weight:500;color:var(--paper);background:var(--slab);
+  border:1px solid transparent;border-radius:999px;padding:8px 16px;cursor:pointer;
+}
+button:hover:not(:disabled){background:var(--slab2)}
+button:disabled{opacity:.3;cursor:not-allowed}
+button.go{background:var(--paper);color:var(--ink);border-color:var(--paper);font-weight:600}
+button.ok,button.ok:disabled{background:var(--on);color:#000;border-color:var(--on);font-weight:600;opacity:1;cursor:default}
+button.lost,button.lost:disabled{background:var(--over);color:#fff;border-color:var(--over);font-weight:600;opacity:1}
+:focus-visible{outline:2px solid var(--under);outline-offset:2px}
+
+/* ── top bar ───────────────────────────────── */
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 22px;flex:0 0 auto}
+.bar>*{white-space:nowrap}
+.bar button{padding:7px 11px}
+#pick{font-size:13px;padding:6px 8px;max-width:210px}
+.bar .st{max-width:340px;overflow:hidden;text-overflow:ellipsis}
+input[type=checkbox]{width:auto;padding:0}
+.dot{width:8px;height:8px;border-radius:50%;background:#3A4455;flex:0 0 auto}
+.dot.live{background:var(--on)}
+.bar .st{font-size:13px;color:var(--warn)}
+.bar .st:empty{display:none}
+.bar .title{font-size:13px;letter-spacing:.02em;color:var(--paper);opacity:.8}
+.grow{flex:1}
+
+/* ── stage ─────────────────────────────────── */
+.stage{flex:1 1 auto;display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:auto auto;
+       align-items:end;align-content:center;column-gap:40px;row-gap:clamp(8px,2.5vh,40px);
+       padding:clamp(8px,2vh,36px) clamp(22px,4vw,56px);min-height:0}
+.lab{font-size:13px;color:var(--mute)}
+.num{font-family:var(--round);font-weight:600;line-height:.88;letter-spacing:-.02em}
+#pw{font-size:clamp(84px,min(20vw,26vh),250px);color:var(--state);transition:color .25s}
+/* block countdown inside a ring; the last 10 s turn yellow (red means: off target) */
+.ringwrap{position:relative;display:inline-grid;place-items:center;width:clamp(110px,min(21vw,23vh),260px);aspect-ratio:1}
+.ringwrap svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.ringwrap circle{fill:none;stroke-width:9}
+#ringBg{stroke:var(--slab2)}
+#ringArc{stroke:var(--on);stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s}
+#left{font-size:clamp(28px,min(5.4vw,6vh),72px)}
+#left.urgent{color:var(--warn)}
+.ringwrap.urgent #ringArc{stroke:var(--warn)}
+.ringwrap.paused #ringArc{stroke:var(--mute)}
+/* long blocks are cut into pieces of about 5 minutes: dots under the block name */
+.segs{display:flex;gap:6px;justify-content:flex-end;margin:4px 0 8px;min-height:8px}
+.segs i{width:22px;height:6px;border-radius:3px;background:var(--slab2)}
+.segs i.done{background:var(--on)}
+.segs i.now{background:var(--paper)}
+.right{text-align:right}
+.block{font-size:clamp(18px,2.2vw,26px);font-weight:500;margin-bottom:6px}
+.right .lab{margin-top:10px}
+.rpmgoal{font-size:clamp(15px,1.7vw,20px);color:var(--mute);margin-bottom:8px}
+.rpmgoal b{color:var(--paper);font-weight:600}
+.hint2{font-size:clamp(22px,2.8vw,34px);font-weight:600;color:var(--over);min-height:1.2em;margin-bottom:6px}
+.c-under{color:var(--over)!important}.c-on{color:var(--on)!important}.c-over{color:var(--over)!important}
+
+/* the band: scale is relative to the target, so 5 watt always looks like 5 watt */
+.band{grid-column:1/-1;position:relative;height:46px}
+.track{position:absolute;inset:16px 0 16px 0;background:var(--slab);border-radius:6px;overflow:hidden}
+.zone{position:absolute;top:0;bottom:0;background:rgba(48,209,88,.28)}
+.mark{position:absolute;top:0;bottom:0;width:5px;border-radius:3px;background:#fff;
+      transform:translateX(-3px);transition:left 1.2s cubic-bezier(.25,.8,.3,1)}
+.ends{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);position:absolute;left:0;right:0;bottom:0}
+.goal{position:absolute;top:0;font-size:12px;color:var(--mute);transform:translateX(-50%)}
+
+/* ── coach ─────────────────────────────────── */
+/* coach: a small bubble that shows up for a few seconds, never over the numbers */
+.toast{position:fixed;left:50%;top:66px;transform:translate(-50%,-8px);z-index:4;pointer-events:none;
+       background:rgba(44,44,46,.94);border-radius:999px;padding:9px 18px;max-width:min(80vw,620px);
+       opacity:0;transition:opacity .45s,transform .45s}
+.toast.in{opacity:1;transform:translate(-50%,0)}
+#coach{font-size:15px;font-weight:500;color:var(--paper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+
+/* ── profile + footer ──────────────────────── */
+#profile{flex:0 0 auto;display:block;width:calc(100% - 44px);margin:10px 22px 0;height:clamp(64px,12vh,170px)}
+.feet{flex:0 0 auto;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;padding:12px 22px 18px}
+.feet small{font-size:.5em;font-weight:500;color:var(--mute);margin-left:3px;letter-spacing:0}
+.feet>div{padding:12px 16px;background:var(--slab);border-radius:16px}
+.feet b{display:block;font-family:var(--round);font-size:clamp(20px,2.6vw,32px);font-weight:600;letter-spacing:-.01em}
+.zpill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;margin-top:4px;background:var(--slab2);color:var(--mute)}
+
+/* ── setup / end panel ─────────────────────── */
+.panel{position:fixed;inset:0;background:#000;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;
+       flex-direction:column;justify-content:flex-start;padding:clamp(24px,6vw,70px);gap:22px;z-index:5}
+/* centred when it fits, scrollable when it does not (the workout panel is taller than an iPad screen) */
+.panel>:first-child{margin-top:auto}.panel>:last-child{margin-bottom:auto}
+.panel.show{display:flex}
+.panel h2{font-size:clamp(26px,4vw,44px);font-weight:600;letter-spacing:-.02em}
+table{border-collapse:collapse;font-size:15px;max-width:620px;width:100%}
+td,th{padding:7px 16px 7px 0;text-align:left;font-weight:400}
+th{font-size:13px;color:var(--mute)}
+select{background:var(--slab);border:1px solid var(--hair);color:var(--paper);border-radius:10px;
+        padding:6px 8px;font:inherit;font-size:15px;max-width:320px}
+input{width:68px;background:var(--slab);border:1px solid var(--hair);color:var(--paper);
+      border-radius:10px;padding:5px 8px;font:inherit;font-size:15px}
+/* end screen: tiles like the ride screen */
+.sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-width:980px;width:100%}
+.sum .tile{background:var(--slab);border-radius:16px;padding:14px 16px}
+.sum b{display:block;font-family:var(--round);font-size:clamp(24px,3.4vw,38px);font-weight:600;letter-spacing:-.01em;margin-top:2px}
+.endSub{font-size:15px;color:var(--mute);margin-top:4px}
+.endActions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* settings: grouped rows like iOS Settings */
+.phead{display:flex;justify-content:space-between;align-items:center;max-width:680px;width:100%}
+.grp{max-width:680px;width:100%}
+.glab{font-size:13px;color:var(--mute);margin:0 0 6px 16px}
+.group{background:var(--slab);border-radius:16px;overflow:hidden}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;min-height:50px;border-bottom:1px solid var(--hair);font-size:15px}
+.group>.row:last-child,details.group:not([open])>summary{border-bottom:0}
+.rowr{display:flex;gap:8px;align-items:center}
+.foot{font-size:12px;color:var(--mute);margin:6px 16px 0;line-height:1.5}
+details.group>summary{cursor:pointer;list-style:none}
+details.group>summary::-webkit-details-marker{display:none}
+input.switch{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:999px;background:var(--slab2);position:relative;cursor:pointer;transition:background .2s;flex:0 0 auto;padding:0;border:0}
+input.switch::before{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:transform .2s}
+input.switch:checked{background:var(--on)}
+input.switch:checked::before{transform:translateX(20px)}
+@media (max-width:760px){.sum{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.hint{font-size:13px;color:var(--mute);max-width:52ch;line-height:1.6}
+label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center;gap:7px}
+
+.vform{display:flex;gap:10px;max-width:620px}
+.vform input{flex:1;width:auto}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:900px){.feet{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:760px){.stage{grid-template-columns:1fr;row-gap:16px}.right{text-align:left}.feet{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.dot.hr{background:#3A4455}
+.dot.hr.live{background:var(--over)}
+.statinfo{font-size:12px;color:var(--mute);margin:0 0 8px}
+.barName{font-size:15px;font-weight:600;color:var(--paper);cursor:pointer}
+#setup{font-size:19px;line-height:1;padding:7px 12px}
+/* start screen: sits below the top bar so the connect buttons stay visible */
+.startp{top:58px;z-index:3;gap:18px}
+.seg{display:inline-flex;background:var(--slab);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap;align-self:flex-start}
+.seg button{background:transparent;border-radius:10px;color:var(--mute);padding:9px 16px}
+.seg button.on{background:var(--slab2);color:var(--paper)}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:980px}
+.wcard{background:var(--slab);border-radius:18px;padding:16px;border:2px solid transparent;cursor:pointer;text-align:left;color:var(--paper);font:inherit}
+.wcard.sel{border-color:var(--on)}
+.wcard .ws{font-size:12px;color:var(--mute)}
+.wcard .wn{font-family:var(--round);font-size:22px;font-weight:600;margin:3px 0}
+.wcard .wd{font-size:13px;color:var(--mute);line-height:1.45}
+.wbars{display:flex;align-items:flex-end;gap:2px;height:34px;margin:10px 0 8px}
+.wbars i{background:var(--slab2);border-radius:2px;display:block}
+.wcard.sel .wbars i{background:#2f5d3c}
+.startrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.bigstart{background:var(--on);color:#000;font-size:18px;font-weight:600;padding:14px 44px}
+.bigstart:hover:not(:disabled){background:#4ade80}
+@media (max-width:760px){.cards{grid-template-columns:1fr}}
+.story{background:var(--slab);border-radius:16px;padding:12px 14px;margin:4px 0 14px;max-width:62ch}
+.story .lab{margin-top:2px}
+.storyT{font-size:18px;font-weight:600;margin:2px 0 8px}
+.storyD{font-size:14px;line-height:1.5;color:var(--paper);white-space:pre-line;margin:2px 0 10px}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="dot" id="dot" hidden></span><span class="st" id="st"></span>
+  <span class="dot hr" id="hrDot" hidden></span><span class="st" id="hrSt"></span>
+  <span class="st" id="tacxStat" title="Test: statusmeldingen van de Tacx (FTMS 0x2ADA)"></span>
+  <span class="barName" id="barName"></span>
+  <span class="grow"></span><select id="pick" hidden></select><input type="checkbox" id="edge" hidden>
+  <button id="setup" aria-label="Instellingen" title="Instellingen">⚙︎</button>
+  <button id="full">Volledig</button>
+  <button id="hrBtn">Hartslag</button>
+  <button id="connect" class="go">Verbind trainer</button>
+  <button id="start" disabled hidden>Start</button>
+  <button id="stop" disabled>Stop</button>
+</div>
+
+<div class="stage">
+  <div>
+    <div class="lab">Vermogen</div>
+    <div class="num" id="pw">0</div>
+  </div>
+  <div class="right">
+    <div class="block" id="block">Klaar om te starten</div>
+    <div class="segs" id="segs"></div>
+    <div class="rpmgoal" id="rpmgoal"></div>
+    <div class="hint2" id="cadHint"></div>
+    <div class="ringwrap" id="ringWrap">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><circle id="ringBg" cx="50" cy="50" r="44"/><circle id="ringArc" cx="50" cy="50" r="44" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg>
+      <div class="num" id="left">0:00</div>
+    </div>
+    <div class="lab" id="leftLab">resterend in dit blok</div>
+  </div>
+  <div class="band">
+      <div class="track"><div class="zone" id="zone"></div><div class="mark" id="mark" style="left:50%"></div></div>
+      <div class="goal" id="goal" style="left:50%">doel</div>
+    <div class="ends"><span id="e0"></span><span id="e1"></span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="coach"></span></div>
+<canvas id="profile"></canvas>
+
+<div class="feet">
+  <div><span class="lab">In je zone</span><b id="streak">0:00</b><span class="statinfo" id="streakBest" style="margin:2px 0 0;display:block"></span></div>
+  <span id="tt" hidden>0:00</span>
+  <div><span class="lab">Cadans</span><b><span id="cd">0</span><small>rpm</small></b></div>
+  <div><span class="lab">Hartslag</span><b><span id="hr">--</span><small>bpm</small></b><span class="zpill" id="hrZone">--</span></div>
+  <div><span class="lab">Snelheid</span><b><span id="spd">0,0</span><small>km/u</small></b></div>
+  <div><span class="lab">Afstand</span><b><span id="dist">0,00</span><small>km</small></b></div>
+  <div><span class="lab">Gemiddeld</span><b id="avg">0 W</b></div>
+  <div><span class="lab">Calorieën</span><b><span id="kj">0</span><small>kcal</small></b></div>
+</div>
+
+<div class="panel startp" id="pStart">
+  <h2>Klaar om te fietsen?</h2>
+  <div class="seg" id="modeSeg">
+    <button data-m="ipad-edge">iPad stuurt, Edge neemt op</button><button data-m="edge">Edge stuurt alles</button><button data-m="ipad">Alleen iPad</button>
+  </div>
+  <p class="hint" id="modeHint" style="margin-top:-8px"></p>
+  <div class="cards" id="cards"></div>
+  <div class="startrow"><button class="bigstart" id="bigStart">Start</button><span class="hint" id="startHint"></span></div>
+</div>
+
+<div class="panel" id="pSetup">
+  <div class="phead"><h2>Instellingen</h2><button class="go" id="closeSetup">Klaar</button></div>
+  <div class="grp">
+    <div class="glab">Algemeen</div>
+    <div class="group">
+      <label class="row"><span>Stem en signaaltjes</span><input type="checkbox" id="voice" class="switch" checked></label>
+      <div class="row"><span>Stem</span><span class="rowr"><select id="vSel"></select><button id="vTest">Beluister</button></span></div>
+      <div class="row"><span>Gewicht</span><span class="rowr"><input type="number" id="kg" min="40" max="160" step="1" style="width:76px;text-align:right"> kg</span></div>
+    </div>
+    <p class="foot">Snelheid en afstand komen uit je watt en je gewicht, zoals op een vlakke weg in Zwift.</p>
+  </div>
+  <div class="grp">
+    <div class="glab">Strava</div>
+    <div class="group">
+      <div class="row"><span>Koppeling</span><span class="statinfo" id="svState" style="margin:0"></span></div>
+      <div class="row"><span>Client ID</span><input type="text" id="svId" autocomplete="off" style="width:160px;text-align:right"></div>
+      <div class="row"><span>Client Secret</span><input type="password" id="svSec" placeholder="uit strava.com/settings/api" autocomplete="off" style="width:240px;text-align:right"></div>
+      <div class="row"><span></span><button id="svLink">Koppel Strava</button></div>
+    </div>
+    <p class="foot">Ritten met "Alleen iPad" gaan na Stop vanzelf naar Strava. De codes blijven alleen op dit toestel. Koppelen kan alleen in de online versie.</p>
+  </div>
+  <div class="grp">
+    <div class="glab">Blokken van <span id="planName"></span></div>
+    <details class="group">
+      <summary class="row"><span>Blokken aanpassen</span><span class="statinfo" style="margin:0">tik om te openen</span></summary>
+      <div style="padding:4px 16px 12px"><table><thead><tr><th>Blok</th><th>Minuten</th><th>Watt</th><th>Rpm van</th><th>tot</th></tr></thead><tbody id="plan"></tbody></table></div>
+    </details>
+    <p class="foot">Op de Mac start en stopt de spatiebalk.</p>
+  </div>
+</div>
+
+<div class="panel" id="pEnd">
+  <div><h2 id="endTitle">Rit gedaan</h2><div class="endSub" id="endSub"></div></div>
+  <p class="statinfo" id="statInfo"></p>
+  <div class="sum">
+    <div class="tile"><span class="lab">Duur</span><b id="sDur">--</b></div>
+    <div class="tile"><span class="lab">Gemiddeld</span><b id="sAvg">--</b></div>
+    <div class="tile"><span class="lab">In zone</span><b id="sZone">--</b></div>
+    <div class="tile"><span class="lab">Calorieën</span><b id="sKj">--</b></div>
+    <div class="tile"><span class="lab">Gem. hartslag</span><b id="sHr">--</b></div>
+    <div class="tile"><span class="lab">Max. hartslag</span><b id="sHrMax">--</b></div>
+    <div class="tile"><span class="lab">Gem. cadans</span><b id="sCd">--</b></div>
+    <div class="tile"><span class="lab">Afstand</span><b id="sDist">--</b></div>
+  </div>
+  <div class="story">
+    <div class="lab">Titel voor Strava en Garmin</div>
+    <div class="storyT" id="storyT"></div>
+    <div class="lab">Beschrijving</div>
+    <div class="storyD" id="storyD"></div>
+    <div class="rowr" style="flex-wrap:wrap"><button id="cpT">Kopieer titel</button><button id="cpD">Kopieer beschrijving</button><button id="reroll">Ander grapje</button><span class="statinfo" id="cpInfo" style="margin:0"></span></div>
+  </div>
+  <div class="endActions">
+    <button class="bigstart" id="again">Klaar</button>
+    <button id="save">Bewaar .tcx</button>
+    <span id="svBox" style="display:none"><button id="svUp">Naar Strava</button> <span class="statinfo" id="svInfo" style="margin:0"></span></span>
+  </div>
+  <p class="statinfo" id="saveInfo" style="margin-top:-12px"></p>
+  <p class="hint"></p>
+</div>
+
+<script>
+const WORKOUT=[
+  {name:"Warm-up",        min:10, watt:110, rpm:[85,95]},
+  {name:"1 · Z2 vlot",    min:8,  watt:135, rpm:[85,95]},
+  {name:"1 · Zwaar trappen",min:3,watt:135, rpm:[60,70]},
+  {name:"1 · Snel trappen",min:2, watt:135, rpm:[100,110]},
+  {name:"1 · Rustig",     min:2,  watt:118, rpm:[85,95]},
+  {name:"2 · Z2 vlot",    min:8,  watt:135, rpm:[85,95]},
+  {name:"2 · Zwaar trappen",min:3,watt:135, rpm:[60,70]},
+  {name:"2 · Snel trappen",min:2, watt:135, rpm:[100,110]},
+  {name:"2 · Rustig",     min:2,  watt:118, rpm:[85,95]},
+  {name:"3 · Z2 vlot",    min:8,  watt:135, rpm:[85,95]},
+  {name:"3 · Zwaar trappen",min:3,watt:135, rpm:[60,70]},
+  {name:"3 · Snel trappen",min:2, watt:135, rpm:[100,110]},
+  {name:"3 · Rustig",     min:2,  watt:118, rpm:[85,95]},
+  {name:"4 · Z2 vlot",    min:8,  watt:135, rpm:[85,95]},
+  {name:"4 · Zwaar trappen",min:3,watt:135, rpm:[60,70]},
+  {name:"4 · Snel trappen",min:2, watt:135, rpm:[100,110]},
+  {name:"4 · Rustig",     min:2,  watt:118, rpm:[85,95]},
+  {name:"Cooldown",       min:5,  watt:100, rpm:[85,95]}
+];
+const PRESETS={
+  "Halfuur makkelijk":[
+    {name:"Inrijden",min:5,watt:108,rpm:[85,95]},
+    {name:"Z2 rustig",min:22,watt:130,rpm:[85,95]},
+    {name:"Uitbollen",min:3,watt:100,rpm:[85,95]}],
+  "Halfuur pittig":[
+    {name:"Inrijden",min:7,watt:120,rpm:[85,95]},
+    {name:"1 · Sweet spot",min:5,watt:180,rpm:[85,95]},{name:"1 · Rustig",min:2,watt:110,rpm:[85,95]},
+    {name:"2 · Sweet spot",min:5,watt:180,rpm:[85,95]},{name:"2 · Rustig",min:2,watt:110,rpm:[85,95]},
+    {name:"3 · Sweet spot",min:5,watt:180,rpm:[85,95]},{name:"3 · Rustig",min:2,watt:110,rpm:[85,95]},
+    {name:"Uitbollen",min:2,watt:100,rpm:[85,95]}],
+  "Weekend lang (Z2 cadans 75)":WORKOUT.map(x=>({...x,rpm:[...x.rpm]}))
+};
+/* the names he sees; the keys stay the same (Garmin, the recognition and saved choices use them) */
+const NAMEN={
+  "Halfuur makkelijk":{n:"Koffieritje",s:"30 min · Z2",d:"Rustig rollen op praattempo. Voor maandag en vrijdag."},
+  "Halfuur pittig":{n:"Drie bergjes",s:"30 min · sweet spot",d:"3 × 5 minuten stevig klimmen. Hoogstens 1 keer per week."},
+  "Weekend lang (Z2 cadans 75)":{n:"Zondagse klassieker",s:"75 min · Z2 en cadans",d:"Lang en rustig, met zwaar en snel trappen. Voor tijdens de voetbal."}
+};
+const MODETXT={
+  "ipad-edge":"De iPad stuurt de Tacx. Start op je Edge een rit zonder workout: hij neemt op, en de rit gaat vanzelf naar Garmin en Strava.",
+  "edge":"Je Edge stuurt de Tacx met de workout en neemt op. Trainer kijkt mee en herkent je workout.",
+  "ipad":"Alleen de iPad: hij stuurt de Tacx, bewaart je rit en zet hem in Strava. Garmin doe je met de hand."
+};
+const PRAISE=["Precies op je doel, zo houden.","Mooi, dit is je tempo.","Strak gereden, niets veranderen.",
+  "Schouders los, ademhaling rustig.","Dit is het tempo dat je sterker maakt.","Lekker soepel, goed bezig.",
+  "Ontspan je handen even op het stuur.","Drink een slokje, je hebt het verdiend.","Rustige ronde trap, mooi zo.",
+  "Dit is de basis waar je straks harder mee rijdt.","Kin omlaag, schouders weg van je oren.","Je hartslag blijft netjes, top.",
+  "Gewoon doorrollen, het gaat vanzelf.","Elke minuut hier telt mee voor later."];
+const LOW=["Een paar watt erbij.","Iets te zacht, duw door.","Terug naar je doel.","Druk iets steviger door je pedalen."];
+const HIGH=["Iets te hard, laat zakken.","Rustiger, je hebt dit nog nodig.","Temper even, dit blijft Z2.","Hou wat over, dit is geen wedstrijd."];
+const HALF=["Halfweg dit blok.","De helft zit erop.","Over de helft, vanaf nu is het aftellen.","Halfweg, je bent goed bezig."];
+const LAST=["Nog één minuut.","Laatste minuut van dit blok.","Nog een minuutje, dan wisselt het.","Laatste minuut, hou vol."];
+const NEXT=["Blok klaar.","Afgewerkt.","Dat blok is binnen.","Klaar met dat stuk."];
+const STUK=["Stukje klaar.","Weer een stukje binnen.","Dat stukje zit erop.","Stukje afgevinkt."];
+const FIN=["Rit gedaan. Mooi werk.","Af. Goed gedaan.","Rit binnen, tijd voor een douche.","Klaar. Dat was een goeie."];
+
+const FTMS='00001826-0000-1000-8000-00805f9b34fb';
+const BIKE='00002ad2-0000-1000-8000-00805f9b34fb';
+const CPCH='00002ad9-0000-1000-8000-00805f9b34fb';
+
+let cp=null,run=false,t0=0,i=0,sT0=0,S=[],power=0,cad=0,timer=null,
+    zoneS=0,secs=0,kj=0,lastSay=0,half=false,last=false,total=0,
+    hr=0,hrAt=0,spd=0,dist=0,pedal=0,autoDone=false;
+
+const COL={under:"#ff453a",on:"#30d158",over:"#ff453a",idle:"#8e8e93"};
+/* heart rate zones in bpm (upper limits Z1 to Z4, from his Strava zones) and Garmin's zone colours */
+const HRZ=[131,164,180,196];
+const ZCOL=["--z1","--z2","--z3","--z4","--z5"];
+function hrZone(h){
+  const el=$("hrZone");
+  if(!h){el.textContent="--";el.style.color="";el.style.background="";return;}
+  const z=HRZ.findIndex(x=>h<=x),n=z<0?5:z+1,c=getComputedStyle(document.documentElement).getPropertyValue(ZCOL[n-1]).trim();
+  el.textContent="Zone "+n;el.style.color=c;el.style.background=c+"33";
+}
+/* block ring: fraction of the block still to go */
+function ring(f,urgent){
+  $("ringArc").style.strokeDashoffset=String(276.5*(1-Math.max(0,Math.min(1,f))));
+  $("ringWrap").classList.toggle("urgent",!!urgent);
+}
+const $=x=>document.getElementById(x);
+/* how he rides, chosen on the start screen:
+   "ipad-edge": this page drives the Tacx (ERG), the Edge only records, so Garmin and Strava get it by themselves
+   "edge":      the Edge drives and records, this page watches and recognises the workout
+   "ipad":      this page drives and records: it keeps the ride, saves a .tcx and sends it to Strava
+   It can be changed any time except during a ride; with the trainer connected the connection is set up again. */
+const MODES=["ipad-edge","edge","ipad"];
+let mode="ipad-edge";try{const v=localStorage.getItem("mode");if(MODES.includes(v))mode=v;}catch(e){}
+const edgeOn=()=>mode==="edge";
+const records=()=>mode==="ipad";
+function setMode(m){
+  if(run||!MODES.includes(m))return;
+  mode=m;try{localStorage.setItem("mode",m);}catch(e){}
+  $("edge").checked=edgeOn();showStart();
+  if(typeof tDev!=="undefined"&&tDev&&tDev.__ready)
+    (edgeOn()&&cp?cpSend(new Uint8Array([0x01])):Promise.resolve()).then(()=>trainerSetup(tDev)).catch(()=>{});
+}
+/* the old checkbox stays (hidden) so the tests can switch with it */
+$("edge").checked=edgeOn();
+$("edge").onchange=()=>setMode($("edge").checked?"edge":"ipad");
+const hrNow=()=>hr&&Date.now()-hrAt<5000?hr:0;
+/* shown power: average of the last 3 seconds, so the number and colour do not jump every pedal stroke */
+let pBuf=[];
+const pw3=()=>{const now=Date.now();pBuf=pBuf.filter(x=>now-x.t<=3000);return pBuf.length?Math.round(pBuf.reduce((s,x)=>s+x.p,0)/pBuf.length):0;};
+const nl=(x,d)=>x.toFixed(d).replace(".",",");
+const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const hms=s=>{s=Math.round(s);const h=Math.floor(s/3600);return (h?h+":"+String(Math.floor(s%3600/60)).padStart(2,"0"):Math.floor(s/60))+":"+String(s%60).padStart(2,"0")};
+/* never the same sentence twice in a row */
+const pick=a=>{let x;do{x=a[Math.floor(Math.random()*a.length)];}while(a.length>1&&x===a.__last);a.__last=x;return x;};
+const sumT=()=>WORKOUT.reduce((a,s)=>a+s.min*60,0);
+
+let VOICES=[],VOICE=null;
+function loadVoices(){
+  VOICES=speechSynthesis.getVoices();
+  const nl=VOICES.filter(v=>/^nl/i.test(v.lang));
+  const list=nl.length?nl:VOICES;
+  const sel=$("vSel");
+  sel.innerHTML=list.map((v,n)=>`<option value="${VOICES.indexOf(v)}">${v.name} (${v.lang})</option>`).join("")
+    ||'<option value="-1">Geen stem gevonden</option>';
+  const best=list.find(v=>/google/i.test(v.name))||list.find(v=>/nl-BE/i.test(v.lang))||list[0];
+  if(best){VOICE=best;sel.value=VOICES.indexOf(best);}
+  sel.onchange=()=>{VOICE=VOICES[+sel.value]||null;};
+}
+if(window.speechSynthesis){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+$("vTest").onclick=()=>{
+  if(!window.speechSynthesis)return;
+  const u=new SpeechSynthesisUtterance("Halfweg dit blok. Mooi, dit is je tempo.");
+  u.lang="nl-BE";if(VOICE)u.voice=VOICE;u.rate=.98;speechSynthesis.cancel();speechSynthesis.speak(u);
+};
+
+/* note(): show text in the bubble; with ms it hides again by itself */
+let noteTimer=null;
+function note(txt,ms){
+  const b=$("toast");clearTimeout(noteTimer);b.classList.remove("in");
+  setTimeout(()=>{$("coach").textContent=txt;b.classList.add("in");},120);
+  if(ms)noteTimer=setTimeout(()=>b.classList.remove("in"),ms+120);
+}
+function say(t){
+  note(t,5500);
+  if($("voice").checked&&window.speechSynthesis){
+    const u=new SpeechSynthesisUtterance(t);u.lang="nl-BE";
+    if(VOICE)u.voice=VOICE;u.rate=.98;speechSynthesis.speak(u);
+  }
+}
+
+/* plan editor */
+function plan(){
+  $("plan").innerHTML=WORKOUT.map((s,n)=>`<tr><td>${s.name}</td>
+    <td><input type="number" min="1" value="${s.min}" data-n="${n}" data-k="min"></td>
+    <td><input type="number" min="50" value="${s.watt}" data-n="${n}" data-k="watt"></td>
+    <td><input type="number" min="40" value="${s.rpm[0]}" data-n="${n}" data-k="r0"></td>
+    <td><input type="number" min="40" value="${s.rpm[1]}" data-n="${n}" data-k="r1"></td></tr>`).join("");
+  document.querySelectorAll("#plan input").forEach(el=>el.onchange=e=>{
+    const w=WORKOUT[+e.target.dataset.n],k=e.target.dataset.k,v=+e.target.value;
+    if(k==="r0")w.rpm[0]=v;else if(k==="r1")w.rpm[1]=v;else w[k]=v;draw();});
+}
+function idle(){
+  if(run)return;
+  $("block").textContent="Klaar om te starten";
+  $("left").textContent=hms(sumT());
+  $("leftLab").textContent="totale duur";ring(1,false);
+}
+(function(){
+  const sel=$("pick");
+  sel.innerHTML=Object.keys(PRESETS).map(k=>`<option value="${k}">${NAMEN[k].n}</option>`).join("");
+  let last=null;try{last=localStorage.getItem("preset");}catch(e){}
+  const use=k=>{if(!PRESETS[k])return;WORKOUT.splice(0,WORKOUT.length,...PRESETS[k].map(x=>({...x,rpm:[...x.rpm]})));
+    sel.value=k;plan();idle();draw&&draw();try{localStorage.setItem("preset",k);}catch(e){}};
+  sel.onchange=()=>{if(run){sel.value=sel.dataset.cur;return;}sel.dataset.cur=sel.value;use(sel.value);};
+  const start=last&&PRESETS[last]?last:"Halfuur makkelijk";sel.dataset.cur=start;
+  WORKOUT.splice(0,WORKOUT.length,...PRESETS[start].map(x=>({...x,rpm:[...x.rpm]})));sel.value=start;
+})();
+plan();idle();face();
+note("Verbind je trainer en je hartslag.");
+/* start screen: mode switch, workout cards with a small profile, big Start */
+function showStart(open){
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));
+  $("modeHint").textContent=MODETXT[mode];
+  const sel=$("pick").value;
+  $("cards").innerHTML=Object.keys(PRESETS).map(k=>{
+    const st=PRESETS[k],T=st.reduce((a,x)=>a+x.min,0),mx=Math.max(...st.map(x=>x.watt));
+    const bars=st.map(x=>`<i style="width:${(x.min/T*100).toFixed(1)}%;height:${Math.round(x.watt/mx*100)}%"></i>`).join("");
+    return `<button class="wcard${k===sel?" sel":""}" data-k="${k}"><div class="ws">${NAMEN[k].s}</div><div class="wn">${NAMEN[k].n}</div><div class="wbars">${bars}</div><div class="wd">${NAMEN[k].d}</div></button>`;
+  }).join("");
+  document.querySelectorAll("#cards .wcard").forEach(c=>c.onclick=()=>{if(run)return;$("pick").value=c.dataset.k;$("pick").onchange();showStart();});
+  $("startHint").textContent=!(tDev&&tDev.__ready)?"Verbind eerst je trainer, rechtsboven.":edgeOn()?"Daarna start je je workout op de Edge en trap je weg.":"De tijd loopt pas als je begint te trappen.";
+  $("barName").textContent=NAMEN[sel]?NAMEN[sel].n:"";
+  $("planName").textContent=NAMEN[sel]?NAMEN[sel].n:"";
+  if(open)$("pStart").classList.add("show");
+}
+document.querySelectorAll("#modeSeg button").forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+$("bigStart").onclick=()=>{
+  if(!(tDev&&tDev.__ready)){note("Verbind eerst je trainer.",4000);return;}
+  try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();actx.resume();}catch(e){}
+  try{if($("voice").checked){const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u);}}catch(e){}
+  arm();
+};
+if(!document.fullscreenEnabled)$("full").hidden=true;   /* Bluefy on the iPad cannot go full screen */
+$("setup").onclick=()=>$("pSetup").classList.add("show");
+$("closeSetup").onclick=()=>$("pSetup").classList.remove("show");
+$("barName").onclick=()=>{if(!run){armed=false;$("start").textContent="Start";$("pEnd").classList.remove("show");showStart(true);}};
+$("again").onclick=()=>{$("pEnd").classList.remove("show");showStart(true);};
+$("full").onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+
+/* bluetooth */
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+/* connect buttons show the state: green when connected, red while reconnecting */
+function btnState(id,state,text){
+  const b=$(id);b.classList.remove("ok","lost");
+  if(state)b.classList.add(state);
+  if(id==="connect")b.classList.toggle("go",!state);
+  b.textContent=text;b.disabled=state==="ok";
+}
+let bikeAt=0,still=0,recent=[],tDev=null,hDev=null,wantW=null,cpWait=null,cpBusy=Promise.resolve();
+
+/* control point: write, then wait for the Tacx's answer (0x80, opcode, result; 0x01 = ok) */
+async function cpOnce(bytes){
+  if(!cp)return null;
+  const answer=new Promise(r=>{cpWait={op:bytes[0],r};setTimeout(()=>r(null),1000);});
+  try{await cp.writeValue(bytes);}catch(e){cpWait=null;return null;}
+  const res=await answer;cpWait=null;return res;
+}
+/* up to 4 tries, 500 ms apart; after "control not permitted" (0x05) ask for control again first */
+function cpSend(bytes){
+  const job=cpBusy.then(async()=>{
+    for(let n=0;n<4;n++){
+      const res=await cpOnce(bytes);
+      if(res===1)return true;
+      if(!cp)return false;
+      await wait(500);
+      if(res===5&&bytes[0]!==0x00)await cpOnce(new Uint8Array([0x00]));
+    }
+    return false;
+  });
+  cpBusy=job.catch(()=>{});
+  return job;
+}
+function cpAnswer(v){
+  if(v.getUint8(0)===0x80&&cpWait&&v.getUint8(1)===cpWait.op)cpWait.r(v.getUint8(2));
+}
+
+/* keep trying to get a lost device back: every 3 s, for about 5 minutes */
+/* one loop per device at a time; it stops as soon as the device is ready again (also after a manual click) */
+const withTimeout=(p,ms)=>Promise.race([p,wait(ms).then(()=>{throw new Error("timeout");})]);
+async function reconnect(d,isCurrent,setup,show,tries=100,limit=15000){
+  if(d.__busy)return;
+  d.__busy=true;
+  try{
+    for(let n=1;n<=tries;n++){
+      if(!isCurrent()||d.__ready)return;
+      show("opnieuw verbinden ("+n+")");
+      try{await withTimeout(setup(d),limit);return;}catch(e){}
+      await wait(3000);
+    }
+    if(isCurrent()&&!d.__ready)show("weg, klik om opnieuw te verbinden");
+  }finally{d.__busy=false;}
+}
+
+/* listeners sit on the characteristic itself (Chrome does not pass them up to the device);
+   the same named function is never added twice, also not after a reconnect */
+const onBike=e=>read(e.target.value);
+const onCp=e=>cpAnswer(e.target.value);
+/* test: does the Tacx report the target the Edge sets (FTMS status 0x2ADA, op 0x08 = target power)?
+   kept in localStorage "ftmsLog" and shown in the bar and on the end screen */
+const STAT='00002ada-0000-1000-8000-00805f9b34fb';
+let ftmsLog=[],statW=null;
+const onStat=e=>{
+  const v=e.target.value,op=v.getUint8(0),x={s:run?secs:-1,op,at:Date.now()};
+  if(op===0x08&&v.byteLength>=3){x.w=v.getInt16(1,true);statW=x.w;}
+  ftmsLog.push(x);if(ftmsLog.length>300)ftmsLog.shift();
+  try{localStorage.setItem("ftmsLog",JSON.stringify(ftmsLog));}catch(e){}
+  $("tacxStat").textContent="Tacx: "+(statW!==null?"doel "+statW+" W":ftmsLog.length+" meldingen");
+};
+function statSummary(){
+  const w=ftmsLog.filter(x=>x.w!==undefined);
+  return "Test Tacx-meldingen: "+ftmsLog.length+" ontvangen"+(w.length?", "+w.length+" wattdoelen ("+w.slice(0,6).map(x=>x.w+" W").join(", ")+(w.length>6?", …":"")+")":", geen wattdoelen")+".";
+}
+const onHr=e=>{const v=e.target.value,fl=v.getUint8(0);hr=(fl&1)?v.getUint16(1,true):v.getUint8(1);hrAt=Date.now();face();};
+async function trainerSetup(d){
+  const s=await (await d.gatt.connect()).getPrimaryService(FTMS);
+  const b=await s.getCharacteristic(BIKE);
+  b.addEventListener('characteristicvaluechanged',onBike);
+  await b.startNotifications();
+  try{const st=await s.getCharacteristic(STAT);st.addEventListener('characteristicvaluechanged',onStat);await st.startNotifications();}catch(e){}
+  cp=null;
+  if(!edgeOn()){
+    try{const c=await s.getCharacteristic(CPCH);c.addEventListener('characteristicvaluechanged',onCp);await c.startNotifications();cp=c;}catch(e){cp=null;}
+    if(cp&&!await cpSend(new Uint8Array([0x00])))cp=null;
+    if(cp&&wantW!==null)cpSend(ergBytes(wantW));
+  }
+  $("dot").classList.add("live");
+  btnState("connect","ok","Trainer ✓");
+  /* the green button says it is connected; the line above only speaks up when something is wrong */
+  $("st").textContent=!edgeOn()&&!cp?"ERG lukt niet, de Tacx antwoordt niet":"";
+}
+function trainerReady(d){
+  d.__ready=true;
+  showStart();
+  if(!run)note(edgeOn()?"Start je Edge en trap weg, ik start vanzelf mee.":"Kies je workout en druk op Start.",6000);
+  pedal=0;
+  $("start").disabled=run;
+  try{localStorage.setItem("tacxId",d.id);}catch(e){}
+}
+function trainerWatch(d){
+  tDev=d;
+  d.ongattserverdisconnected=()=>{
+    d.__ready=false;
+    if(d!==tDev)return;
+    cp=null;power=0;cad=0;spd=0;pedal=0;pBuf=[];face();
+    $("dot").classList.remove("live");
+    btnState("connect","lost","Trainer weg…");
+    reconnect(d,()=>d===tDev,async x=>{await trainerSetup(x);trainerReady(x);},t=>{if(t.includes("klik")){btnState("connect",null,"Verbind trainer");$("st").textContent="Trainer weg, tik op Verbind trainer";}else btnState("connect","lost","Trainer zoeken… "+(t.match(/\d+/)||[""])[0]);});
+  };
+}
+$("connect").onclick=async()=>{
+  try{
+    $("st").textContent="Zoeken...";
+    const d=await navigator.bluetooth.requestDevice({filters:[{services:[FTMS]}],optionalServices:[FTMS]});
+    trainerWatch(d);
+    await trainerSetup(d);
+    trainerReady(d);
+  }catch(e){$("st").textContent="Koppelen mislukt";}
+};
+/* virtual speed like Zwift: flat road, rider + 9 kg bike, CdA 0.32, Crr 0.004, 2.5% drivetrain loss */
+let kg=85;try{const v=+localStorage.getItem("gewicht");if(v>=40&&v<=160)kg=v;}catch(e){}
+$("kg").value=kg;
+$("kg").onchange=()=>{const v=+$("kg").value;if(v>=40&&v<=160){kg=v;try{localStorage.setItem("gewicht",String(v));}catch(e){}}else $("kg").value=kg;};
+function virtSpeed(p){
+  if(!(p>0))return 0;
+  const P=p*0.975,crr=0.004*(kg+9)*9.81,air=0.5*1.225*0.32;
+  let lo=0,hi=30;
+  for(let n=0;n<40;n++){const v=(lo+hi)/2;if(crr*v+air*v*v*v>P)hi=v;else lo=v;}
+  return lo*3.6;
+}
+function read(dv){
+  const f=dv.getUint16(0,true);let o=2;
+  if(!(f&1))o+=2; if(f&2)o+=2;
+  if(f&4){cad=dv.getUint16(o,true)/2;o+=2;}
+  if(f&8)o+=2; if(f&16)o+=3; if(f&32)o+=2;
+  if(f&64){power=dv.getInt16(o,true);o+=2;pBuf.push({t:Date.now(),p:power});spd=virtSpeed(power);}
+  bikeAt=Date.now();
+  if(f&64){recent.push({t:bikeAt,p:power});while(recent.length&&recent[0].t<bikeAt-15000)recent.shift();}
+  if(!run){still=cad<5?still+1:0;if(still>=10)autoDone=false;}
+  if(run){
+    if(cad<5){idleN++;goN=0;if(idleN>=3)pause();} /* only cadence: the flywheel can still report some power */
+    else if(cad>30&&power>20){goN++;idleN=0;if(goN>=2)resume();}
+  }
+  if((edgeOn()||armed)&&!autoDone&&!run&&!$("start").disabled&&!$("pEnd").classList.contains("show")){
+    pedal=(cad>30&&power>20)?pedal+1:0;
+    if(pedal>=3){pedal=0;autoDone=true;go();}
+  }
+  face();
+}
+/* heart rate strap (Bluetooth, e.g. HRM-Pro Plus) */
+const HRS='0000180d-0000-1000-8000-00805f9b34fb',HRM='00002a37-0000-1000-8000-00805f9b34fb';
+async function hrSetup(d){
+  const c=await (await (await d.gatt.connect()).getPrimaryService(HRS)).getCharacteristic(HRM);
+  c.addEventListener('characteristicvaluechanged',onHr);
+  await c.startNotifications();
+  $("hrDot").classList.add("live");$("hrSt").textContent="";
+  btnState("hrBtn","ok","Hartslag ✓");
+  d.__ready=true;
+}
+function hrWatch(d){
+  hDev=d;
+  d.ongattserverdisconnected=()=>{
+    d.__ready=false;
+    if(d!==hDev)return;
+    $("hrDot").classList.remove("live");hr=0;face();
+    btnState("hrBtn","lost","Hartslag weg…");
+    reconnect(d,()=>d===hDev,hrSetup,t=>{if(t.includes("klik")){btnState("hrBtn",null,"Hartslag");$("hrSt").textContent="Hartslag weg, tik op Hartslag";}else btnState("hrBtn","lost","Hartslag zoeken… "+(t.match(/\d+/)||[""])[0]);});
+  };
+}
+$("hrBtn").onclick=async()=>{
+  try{
+    $("hrSt").textContent="Zoeken...";
+    const d=await navigator.bluetooth.requestDevice({filters:[{services:[HRS]}]});
+    hrWatch(d);
+    await hrSetup(d);
+    try{localStorage.setItem("hrId",d.id);}catch(e){}
+  }catch(e){$("hrSt").textContent="Hartslag niet gekoppeld";}
+};
+
+/* on open: reconnect by itself to the trainer and strap used last time, if Chrome still knows them
+   (navigator.bluetooth.getDevices); otherwise the buttons work as before */
+async function autoConnect(){
+  if(!navigator.bluetooth||!navigator.bluetooth.getDevices)return;
+  let ids={};try{ids={t:localStorage.getItem("tacxId"),h:localStorage.getItem("hrId")};}catch(e){}
+  let devs=[];try{devs=await navigator.bluetooth.getDevices();}catch(e){return;}
+  for(const d of devs){
+    /* the buttons stay usable while this tries for about half a minute in the background
+       (in Bluefy on the iPad it does not work; there a tap on the button does) */
+    if(d.id===ids.t&&!tDev){
+      trainerWatch(d);
+      reconnect(d,()=>d===tDev,async x=>{await trainerSetup(x);trainerReady(x);},
+        t=>{$("st").textContent=t.includes("klik")?"Tik op Verbind trainer":"Zoekt je trainer…";},10,8000);
+    }else if(d.id===ids.h&&!hDev){
+      hrWatch(d);
+      reconnect(d,()=>d===hDev,hrSetup,
+        t=>{$("hrSt").textContent=t.includes("klik")?"Tik op Hartslag":"Zoekt hartslag…";},10,8000);
+    }
+  }
+}
+autoConnect();
+showStart(true);
+
+function ergBytes(w){const b=new Uint8Array(3);b[0]=0x05;new DataView(b.buffer).setInt16(1,w,true);return b;}
+async function target(w){wantW=w;if(!cp||edgeOn())return;await cpSend(ergBytes(w));}
+
+/* the face: number, colour, band */
+/* during a ride the big number and the marker move once a second (set in tick), not on every reading:
+   number = 3 s average, marker = 5 s average with a slow slide */
+let shownP=0,markP=0;
+function steady(){shownP=pw3();markP=Math.round(avgP(5))||shownP;}
+function face(){
+  const t=run?WORKOUT[i].watt:0;
+  const p3=run&&!paused?shownP:pw3();
+  $("pw").textContent=p3||"0";
+  $("cd").textContent=cad?Math.round(cad):"0";
+  const rg=run?WORKOUT[i].rpm:null;
+  ["cd"].forEach(id=>{const el=$(id);el.classList.remove("c-under","c-on","c-over");
+    if(rg&&cad)el.classList.add(cad<rg[0]?"c-under":cad>rg[1]?"c-over":"c-on");});
+  $("rpmgoal").innerHTML=rg?`cadans <b>${rg[0]} tot ${rg[1]}</b> rpm`:"";
+  const dir=rg&&cad?(cad<rg[0]?1:cad>rg[1]?-1:0):0;
+  $("cadHint").textContent=dir>0?"▲ sneller trappen":dir<0?"▼ trager trappen":"";
+  const h=hrNow();$("hr").textContent=h||"--";hrZone(h);
+  $("spd").textContent=nl(spd,1);$("dist").textContent=nl(dist/1000,2);
+  if(!run){
+    document.body.style.setProperty("--state",COL.idle);
+    $("zone").style.display="none";$("mark").style.display="none";
+    $("goal").textContent="";$("e0").textContent="";$("e1").textContent="";
+    return;
+  }
+  $("zone").style.display="";$("mark").style.display="";
+  const st=p3<t*.95?COL.under:p3>t*1.05?COL.over:COL.on;
+  document.body.style.setProperty("--state",st);
+  const w=Math.max(40,t*.35),lo=t-w,hi=t+w;            /* window around the target, wide enough to stay calm */
+  const pos=p=>Math.max(0,Math.min(100,(p-lo)/(hi-lo)*100));
+  $("zone").style.left=pos(t*.95)+"%";
+  $("zone").style.width=(pos(t*1.05)-pos(t*.95))+"%";
+  $("mark").style.left=pos(markP)+"%";
+  $("goal").style.left=pos(t)+"%";$("goal").textContent="doel "+t;
+  $("e0").textContent=Math.round(lo);$("e1").textContent=Math.round(hi);
+}
+
+/* profile */
+const cv=$("profile"),cx=cv.getContext("2d");
+function draw(){
+  const r=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  cv.width=W*r;cv.height=H*r;cx.setTransform(r,0,0,r,0,0);cx.clearRect(0,0,W,H);
+  const T=sumT(),mx=Math.max(...WORKOUT.map(s=>s.watt),...S.map(s=>s.p),1)*1.25;
+  let c=0;
+  WORKOUT.forEach((s,n)=>{
+    const x=c/T*W,w=s.min*60/T*W,h=s.watt/mx*(H-14);
+    cx.fillStyle=n<i?"#1c1c1e":n===i?"#3a3a3c":"#161618";
+    cx.fillRect(x,H-h,w-2,h);
+    cx.fillStyle=n===i?"#30d158":"#3a3a3c";
+    cx.fillRect(x,H-h,w-2,3);
+    if(w>42){cx.fillStyle=n===i?"#ffffff":"#8e8e93";cx.font="600 12px -apple-system,sans-serif";
+             cx.fillText(s.watt,x+6,H-h+16);}
+    c+=s.min*60;
+  });
+  if(S.length>1){
+    cx.beginPath();cx.strokeStyle="rgba(255,255,255,.8)";cx.lineWidth=1.5;
+    S.forEach((s,n)=>{const x=n/T*W,y=H-s.p/mx*(H-14);n?cx.lineTo(x,y):cx.moveTo(x,y);});
+    cx.stroke();
+    const px=S.length/T*W;
+    cx.strokeStyle="#ffffff";cx.lineWidth=1;cx.beginPath();cx.moveTo(px,0);cx.lineTo(px,H);cx.stroke();
+  }
+}
+addEventListener("resize",draw);draw();
+
+/* keep the screen on during a ride; the browser drops the lock when the tab is hidden, so ask again on return */
+let wake=null;
+async function stayAwake(on){
+  try{
+    if(on&&!wake&&navigator.wakeLock){
+      const w=await navigator.wakeLock.request("screen");
+      if(!run){w.release();return;}
+      wake=w;w.addEventListener("release",()=>{if(wake===w)wake=null;});
+    }
+    else if(!on&&wake){const w=wake;wake=null;await w.release();}
+  }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{if(run&&document.visibilityState==="visible")stayAwake(true);});
+
+/* run */
+/* Edge mode: the Edge does not tell which workout runs, so the dashboard guesses it.
+   Start: weekend -> Weekend lang, weekdays -> Halfuur makkelijk.
+   After 1 min: above 114 W -> Halfuur pittig (the Edge holds ~105 W in Inrijden makkelijk,
+   ~110 W in the weekend warm-up, ~120 W in Inrijden pittig).
+   At 5:20: makkelijk has gone to 130 W at 5:00, the weekend ride is still warming up at ~110 W.
+   At 7:20: pittig has gone to 180 W at 7:00. */
+const WEEKEND="Weekend lang (Z2 cadans 75)";
+let guess=null;
+/* average of the real trainer readings of the last n seconds (not the ride log, which a hidden tab fills in later) */
+function avgP(n){const from=Date.now()-n*1000,xs=recent.filter(x=>x.t>=from);return xs.length?xs.reduce((a,x)=>a+x.p,0)/xs.length:0;}
+function switchWorkout(k){
+  if(!PRESETS[k]||$("pick").value===k)return;
+  WORKOUT.splice(0,WORKOUT.length,...PRESETS[k].map(x=>({...x,rpm:[...x.rpm]})));
+  $("pick").value=k;$("pick").dataset.cur=k;try{localStorage.setItem("preset",k);}catch(e){}
+  $("barName").textContent=NAMEN[k].n;
+  if(run){
+    const el=(Date.now()-t0)/1000;let acc=0;i=0;
+    while(i<WORKOUT.length-1&&acc+WORKOUT[i].min*60<=el){acc+=WORKOUT[i].min*60;i++;}
+    sT0=t0+acc*1000;total=sumT();
+    const inBlok=el-acc,len=WORKOUT[i].min*60;half=inBlok>=len/2;last=len-inBlok<=60;
+    segK=Math.min(segN(len)-1,Math.floor(inBlok/(len/segN(len))));
+    note("Workout herkend: "+NAMEN[k].n+".",5000);
+  }
+  plan();draw();face();
+}
+function autoGuess(now){
+  if(!guess)return;
+  const el=(now-t0)/1000,k=$("pick").value;
+  /* each check only counts inside its window; a check that comes too late (hidden tab) is skipped */
+  if(!guess.p&&el>=60){guess.p=true;if(el<290&&avgP(30)>114)switchWorkout("Halfuur pittig");}
+  if(!guess.f&&el>=320){guess.f=true;const a=avgP(10);
+    if(el<590&&k==="Halfuur makkelijk"&&a<120)switchWorkout(WEEKEND);
+    else if(el<590&&k===WEEKEND&&a>=122)switchWorkout("Halfuur makkelijk");}
+  if(!guess.s&&el>=440){guess.s=true;const a=avgP(10);
+    if(el<710&&k==="Halfuur pittig"&&a<150)switchWorkout(a>=122?"Halfuur makkelijk":WEEKEND);
+    guess=null;}
+}
+
+/* ride clock: a worker keeps ticking every second, also when this tab is in the background
+   (Chrome slows normal timers there, so block announcements would come late);
+   if no worker tick arrives, the normal timer takes over */
+let worker=null,workerOk=false,fallback=null;
+function startClock(){
+  stopClock();
+  try{
+    const src="let i=null;onmessage=e=>{clearInterval(i);if(e.data==='start')i=setInterval(()=>postMessage(0),1000);};";
+    worker=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+    worker.onmessage=()=>{workerOk=true;if(run)tick();};
+    worker.onerror=()=>{worker=null;};
+    worker.postMessage("start");
+  }catch(e){worker=null;}
+  fallback=setInterval(()=>{if(!workerOk&&run)tick();},1000);
+}
+function stopClock(){
+  if(worker){worker.terminate();worker=null;}
+  workerOk=false;clearInterval(fallback);clearInterval(timer);
+}
+
+/* start by pedalling: with the Edge always; without it after Start (= workout confirmed).
+   During a ride it pauses when he stops pedalling and goes on when he pedals again. */
+let paused=null,armed=false,idleN=0,goN=0,segK=0,streak=0,best=0,actx=null;
+function arm(){
+  if(run)return;
+  armed=true;autoDone=false;pedal=0;$("start").textContent="Klaar ✓";target(WORKOUT[0].watt);
+  $("pStart").classList.remove("show");
+  note(edgeOn()?"Start je workout op de Edge en trap weg.":mode==="ipad-edge"?"Start een rit op je Edge en begin te trappen.":"Begin te trappen, dan start de tijd.",7000);
+}
+function pause(at){
+  if(!run||paused||edgeOn())return;
+  paused=at||Date.now();$("ringWrap").classList.add("paused");$("leftLab").textContent="pauze, trap verder";
+  note("Pauze. Trap verder om te hervatten.");
+}
+function resume(){
+  if(!paused)return;
+  const d=Date.now()-paused;t0+=d;sT0+=d;paused=null;$("ringWrap").classList.remove("paused");
+  note("We rijden weer.",3000);
+}
+/* a soft two-tone signal at the end of a piece or block (sound needs one tap first on the iPad) */
+addEventListener("pointerdown",()=>{if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}});
+function chime(){
+  if(!actx||!$("voice").checked)return;
+  try{
+    const n=actx.currentTime;
+    [880,1320].forEach((f,k)=>{const o=actx.createOscillator(),g=actx.createGain(),s=n+k*.13;
+      o.type="sine";o.frequency.value=f;g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.12,s+.02);
+      g.gain.exponentialRampToValueAtTime(.001,s+.35);o.connect(g).connect(actx.destination);o.start(s);o.stop(s+.4);});
+  }catch(e){}
+}
+/* blocks of 8 minutes or more are cut into pieces of about 5 minutes */
+const segN=len=>len>=480?Math.round(len/300):1;
+
+function go(){
+  if(run)return;
+  paused=null;armed=false;idleN=goN=0;segK=0;streak=0;best=0;lastSay=Date.now();
+  $("start").textContent="Start";$("ringWrap").classList.remove("paused");
+  steady();
+  stopClock();
+  rideWorkout=null;
+  $("edge").disabled=true;
+  guess=null;
+  ftmsLog=ftmsLog.filter(x=>x.at>Date.now()-30000);  /* the Edge may set its first target just before the start */
+  $("pStart").classList.remove("show");
+  if(edgeOn())guess={};   /* the Edge runs the workout: start from the chosen card and check it on the way */
+  run=true;t0=Date.now();i=0;sT0=Date.now();S=[];zoneS=0;secs=0;kj=0;dist=0;half=last=false;total=sumT();
+  $("start").disabled=true;$("stop").disabled=false;
+  $("pSetup").classList.remove("show");$("pEnd").classList.remove("show");
+  $("leftLab").textContent="resterend in dit blok";
+  target(WORKOUT[0].watt);
+  say("We starten rustig. "+WORKOUT[0].min+" minuten, cadans rond "+Math.round((WORKOUT[0].rpm[0]+WORKOUT[0].rpm[1])/2)+".");
+  startClock();
+  stayAwake(true);
+}
+$("start").onclick=arm;$("stop").onclick=()=>end(false);
+addEventListener("keydown",e=>{if(e.code==="Space"&&e.target.tagName!=="INPUT"){
+  e.preventDefault();run?end(false):(!$("start").disabled&&tDev&&tDev.__ready&&go());}});
+
+function end(done){
+  run=false;stopClock();target(0);stayAwake(false);
+  paused=null;armed=false;$("start").textContent="Start";$("ringWrap").classList.remove("paused");
+  $("segs").innerHTML="";
+  $("edge").disabled=false;
+  $("stop").disabled=true;$("start").disabled=false;$("left").classList.remove("urgent");ring(1,false);
+  $("block").textContent=done?"Rit gedaan":"Gestopt";$("left").textContent=hms(secs);
+  face();
+  if(!S.length){showStart(true);return;}
+  keepRide();
+  showSummary(done?"Rit gedaan":"Gestopt na "+hms(secs));
+  svEnd(true);
+  $("statInfo").textContent=ftmsLog.length?statSummary():"";
+  if(done)say(pick(FIN));
+}
+/* title and a different funny description after every ride, built from the ride's own numbers */
+const TITELS={"Halfuur makkelijk":"Koffieritje","Halfuur pittig":"Drie bergjes","Weekend lang (Z2 cadans 75)":"Zondagse klassieker"};
+const GRAP=[
+  {f:s=>`${s.kj} kcal burned. That's roughly ${(s.kj/150).toFixed(1).replace(".",",")} frikandellen. Not that I'm counting.`},
+  {f:s=>`${s.zone}% in the zone. The other ${100-s.zone}% I was staring at the fan.`,if:s=>s.zone<100},
+  {f:s=>`${s.km} km without a single traffic light, pothole or headwind.`},
+  {f:s=>`Average cadence ${s.cad} rpm. The Tacx filed no complaints.`,if:s=>s.cad},
+  {f:s=>`${s.w} W for ${s.min} minutes: enough to keep ${Math.max(1,Math.round(s.w/8))} LED bulbs on. The living room stayed dark anyway.`},
+  {f:s=>`Heart rate peaked at ${s.hrMax}. The fan peaked at max.`,if:s=>s.hrMax},
+  {f:s=>`ERG said ${s.w} W. My legs said "fine". My couch said "come back".`},
+  {f:s=>`${s.min} minutes, zero kilometres from home. ${s.km} virtual ones though.`},
+  {f:s=>`No avatar, no drafting, no excuses. Just ${s.w} W and a towel.`},
+  {f:s=>`Average heart rate ${s.hr}. Calm, collected, slightly moist.`,if:s=>s.hr},
+  {f:s=>`Zone 2: the noble art of going slow on purpose.`,if:s=>s.wo==="Halfuur makkelijk"||s.wo.startsWith("Weekend")},
+  {f:s=>`3 × 5 minutes at 180 W. "Sweet" spot is a strong word.`,if:s=>s.wo==="Halfuur pittig"},
+  {f:s=>`4 × heavy gear at 60 rpm. Knees: still attached.`,if:s=>s.wo.startsWith("Weekend")}
+];
+const TAG=[
+  "Virtual ride on my own home-built trainer system: Tacx Flux S + an app I made myself.",
+  "Ridden on Trainer, my DIY Zwift. Built at home, tested on my legs.",
+  "Powered by a home-made app, a Tacx Flux S and one hard-working fan.",
+  "No Zwift subscriptions were harmed in the making of this ride. Home-built trainer system."
+];
+let verhaal={t:"",d:""};
+function rideStats(){
+  const n=S.length,hs=S.filter(x=>x.h).map(x=>x.h),cs=S.filter(x=>x.c).map(x=>x.c);
+  return {min:Math.round(n/60),w:Math.round(S.reduce((a,x)=>a+x.p,0)/n),kj:Math.round(kj),zone:Math.round(zoneS/n*100),
+    km:nl(dist/1000,1),cad:cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length):0,
+    hr:hs.length?Math.round(hs.reduce((a,b)=>a+b,0)/hs.length):0,hrMax:hs.length?Math.max(...hs):0,wo:rideWorkout||$("pick").value};
+}
+function makeStory(){
+  const s=rideStats(),pool=GRAP.filter(g=>!g.if||g.if(s));
+  const a=pool.splice(Math.floor(Math.random()*pool.length),1)[0],b=pool[Math.floor(Math.random()*pool.length)];
+  const titel=(TITELS[s.wo]||"Indoor rit")+(S.length<(PRESETS[s.wo]?PRESETS[s.wo].reduce((a,x)=>a+x.min*60,0):sumT())-60?" (ingekort)":"");
+  const cijfers=`${s.w} W avg · ${s.kj} kcal · ${s.zone}% in zone`+(s.hr?` · HR ${s.hr} (max ${s.hrMax})`:"")+(s.cad?` · ${s.cad} rpm`:"");
+  verhaal={t:titel,d:a.f(s)+" "+b.f(s)+"\n"+cijfers+"\n"+TAG[Math.floor(Math.random()*TAG.length)]};
+  $("storyT").textContent=verhaal.t;$("storyD").textContent=verhaal.d;$("cpInfo").textContent="";
+}
+const copy=async(x,what)=>{try{await navigator.clipboard.writeText(x);$("cpInfo").textContent=what+" gekopieerd";}catch(e){$("cpInfo").textContent="Kopiëren lukte niet, selecteer de tekst zelf";}};
+$("cpT").onclick=()=>copy(verhaal.t,"Titel");
+$("cpD").onclick=()=>copy(verhaal.d,"Beschrijving");
+$("reroll").onclick=makeStory;
+let rideWorkout=null;
+
+function showSummary(title){
+  const secs=S.length,wo=rideWorkout||$("pick").value,d=new Date(S[0].t);
+  $("endTitle").textContent=title;
+  $("endSub").textContent=(NAMEN[wo]?NAMEN[wo].n+" · ":"")+d.toLocaleDateString("nl-BE",{weekday:"long",day:"numeric",month:"long"})+" om "+d.toLocaleTimeString("nl-BE",{hour:"2-digit",minute:"2-digit"});
+  $("saveInfo").textContent="";
+  $("sDur").textContent=hms(secs);
+  $("sAvg").textContent=Math.round(S.reduce((a,s)=>a+s.p,0)/S.length)+" W";
+  $("sZone").textContent=Math.round(zoneS/secs*100)+"%";
+  $("sKj").textContent=Math.round(kj)+" kcal";
+  const hs=S.filter(x=>x.h).map(x=>x.h),cs=S.filter(x=>x.c).map(x=>x.c);
+  $("sHr").textContent=hs.length?Math.round(hs.reduce((a,b)=>a+b,0)/hs.length)+" bpm":"--";
+  $("sHrMax").textContent=hs.length?Math.max(...hs)+" bpm":"--";
+  $("sCd").textContent=cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length)+" rpm":"--";
+  $("sDist").textContent=nl(dist/1000,1)+" km";
+  $("save").style.display=records()?"":"none";
+  $("pEnd").querySelector(".hint").textContent=!records()?"Je Edge heeft de rit opgenomen. Sla hem daar op, dan staat hij vanzelf in Garmin Connect en Strava. Hier hoef je niets te bewaren.":"Bewaar als .tcx en sleep het bestand in Garmin Connect bij Activiteit importeren.";
+  makeStory();
+  $("pEnd").classList.add("show");
+}
+
+function tick(){
+  const now=Date.now();
+  if(paused){face();return;}
+  autoGuess(now);
+  if(now-bikeAt>3000){
+    /* no data from the Tacx: count up to the last reading, then pause from there
+       (with the Edge in charge the clock runs on, like on the Edge, with 0 W) */
+    const upto=Math.floor((bikeAt-t0)/1000);
+    while(bikeAt>t0&&secs<upto){secs++;kj+=power/1000;dist+=spd/3.6;S.push({p:power,c:Math.round(cad),h:hrNow(),d:dist,t:new Date(t0+secs*1000).toISOString()});}
+    power=0;cad=0;spd=0;
+    if(!edgeOn()){pause(Math.max(bikeAt,t0));face();return;}
+  }
+  /* catch up on missed seconds: Chrome may run this only once a minute in a hidden tab */
+  const due=Math.floor((now-t0)/1000);
+  while(secs<due){
+    secs++;kj+=power/1000;dist+=spd/3.6;
+    const sb=WORKOUT[i],okW=pw3()>=sb.watt*.95&&pw3()<=sb.watt*1.05,okC=cad>=sb.rpm[0]&&cad<=sb.rpm[1];
+    if(okW)zoneS++;
+    if(okW&&okC){streak++;if(streak>best)best=streak;}else streak=0;
+    S.push({p:power,c:Math.round(cad),h:hrNow(),d:dist,t:new Date(t0+secs*1000).toISOString()});
+  }
+  let moved=false;
+  while(now-sT0>=WORKOUT[i].min*60000){
+    sT0+=WORKOUT[i].min*60000;i++;moved=true;
+    if(i>=WORKOUT.length){chime();return end(true);}
+  }
+  const s=WORKOUT[i],el=(now-sT0)/1000,len=s.min*60,rest=len-el;
+  const n=segN(len),sl=len/n,k=Math.min(n-1,Math.floor(el/sl)),segRest=sl*(k+1)-el;
+  if(moved){
+    half=el>=len/2;last=rest<=60;segK=k;target(s.watt);chime();
+    const mid=Math.round((s.rpm[0]+s.rpm[1])/2);
+    say(pick(NEXT)+" Nu "+s.min+" minuten "+s.name.replace(/^\d+ · /,"").toLowerCase()+", cadans rond "+mid+(n>1?", in "+n+" stukjes.":"."));
+  }else if(k>segK){segK=k;chime();say(pick(STUK)+" Nog "+(n-k)+(n-k===1?" stukje":" stukjes")+" in dit blok.");}
+
+  $("tt").textContent=hms((now-t0)/1000);
+  $("block").textContent=s.name;
+  $("segs").innerHTML=n>1?Array.from({length:n},(_,x)=>`<i class="${x<k?"done":x===k?"now":""}"></i>`).join(""):"";
+  $("left").textContent=mmss(n>1?segRest:rest);
+  $("left").classList.toggle("urgent",rest<=10);
+  $("leftLab").textContent=n>1?"stukje "+(k+1)+" van "+n+" · blok nog "+mmss(rest):"resterend in dit blok";
+  ring(n>1?segRest/sl:rest/len,rest<=10);
+  $("avg").textContent=(S.length?Math.round(S.reduce((a,x)=>a+x.p,0)/S.length):0)+" W";
+  $("kj").textContent=Math.round(kj); /* kJ of work is about kcal burned when cycling (body ~24% efficient) */
+  $("streak").textContent=mmss(streak);
+  $("streakBest").textContent=best>=60?"beste "+mmss(best):"";
+
+  if(moved||k>0&&el-k*sl<2){/* just announced */}
+  else if(n===1&&!half&&el>=len/2&&len>=300){half=true;say(pick(HALF));}
+  else if(!last&&rest<=60&&len>=180){last=true;say(pick(LAST));}
+  else if(now-lastSay>120000){lastSay=now;
+    const r=s.rpm;
+    if(cad&&cad<r[0]-3)say("Cadans omhoog, richting "+r[0]+" tot "+r[1]+".");
+    else if(cad&&cad>r[1]+3)say("Trap wat trager, rond "+r[0]+" tot "+r[1]+".");
+    else if(!edgeOn()&&pw3()<s.watt*.9)say(pick(LOW));
+    else if(!edgeOn()&&pw3()>s.watt*1.1)say(pick(HIGH));
+    else if(streak>=300&&streak%300<2)say(mmss(streak)+" aan een stuk in je zone. Knap.");
+    else say(pick(PRAISE));}
+  if(secs%15===0)keepRide();
+  steady();
+  draw();face();
+}
+
+/* a ride without the Edge is kept on this device while riding and until it is saved,
+   so closing or reloading the page (or a save that fails on the iPad) does not lose it */
+const KEEP="ritOpslag";
+const KEEP_OLD="ritOpslagOud";
+const kept=k=>{try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}};
+const unsaved=r=>r&&!r.saved&&r.S&&r.S.length>=60;
+function keepRide(){
+  if(!records()||!S.length)return;
+  try{
+    const old=kept(KEEP);
+    /* a different ride that was never saved goes aside instead of being overwritten */
+    if(unsaved(old)&&old.S[0].t!==S[0].t)localStorage.setItem(KEEP_OLD,localStorage.getItem(KEEP));
+    const r=old&&old.S&&old.S[0].t===S[0].t?old:{};
+    localStorage.setItem(KEEP,JSON.stringify({S,dist,kj,zoneS,wo:rideWorkout||$("pick").value,saved:!!r.saved,strava:r.strava}));
+  }catch(e){}
+}
+/* change the kept ride with this start time, wherever it is */
+function keptUpdate(t,f){
+  for(const k of [KEEP,KEEP_OLD]){const r=kept(k);if(r&&r.S&&r.S[0].t===t){f(r);try{localStorage.setItem(k,JSON.stringify(r));}catch(e){}}}
+}
+function rideSaved(){if(S.length)keptUpdate(S[0].t,r=>r.saved=true);}
+const esc=x=>String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+function tcxText(){
+  const t=S[0].t;
+  const pts=S.map(x=>`<Trackpoint><Time>${x.t}</Time><DistanceMeters>${x.d.toFixed(1)}</DistanceMeters>`+
+    (x.h?`<HeartRateBpm><Value>${x.h}</Value></HeartRateBpm>`:"")+`<Cadence>${x.c||0}</Cadence><Extensions>`+
+    `<TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2"><Watts>${x.p||0}</Watts></TPX>`+
+    `</Extensions></Trackpoint>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+<Activities><Activity Sport="Biking"><Id>${t}</Id>
+<Lap StartTime="${t}"><TotalTimeSeconds>${S.length}</TotalTimeSeconds><DistanceMeters>${dist.toFixed(1)}</DistanceMeters>
+<Calories>${Math.round(kj)}</Calories><Intensity>Active</Intensity><TriggerMethod>Manual</TriggerMethod>
+<Track>${pts}</Track></Lap><Notes>${esc(verhaal.t+"\n\n"+verhaal.d)}</Notes></Activity></Activities></TrainingCenterDatabase>`;
+}
+/* on the iPad the share sheet (Bewaar in Bestanden, iCloud Drive, Google Drive, mail); elsewhere a download */
+$("save").onclick=async()=>{
+  const naam="rit-"+S[0].t.slice(0,16).replace(/[:T]/g,"-")+".tcx";
+  const file=new File([tcxText()],naam,{type:"application/vnd.garmin.tcx+xml"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:naam});rideSaved();$("saveInfo").textContent="Bewaard.";return;}
+    catch(e){if(e&&e.name==="AbortError")return;}
+  }
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(file);a.download=naam;a.click();
+  /* on the iPad a download often silently does nothing: then the ride stays kept until a share works */
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1;
+  if(ios){$("saveInfo").textContent="Bewaren lukte niet via het deelmenu. De rit blijft op dit toestel staan; probeer het nog eens.";return;}
+  rideSaved();
+  $("saveInfo").textContent="Bewaard als "+naam+" in Downloads.";
+};
+/* Strava: a ride without the Edge goes straight from this page to Strava (Strava allows that, CORS).
+   Client ID and secret of his own Strava API app are typed in once and kept only on this device. */
+const SV="strava";
+function sv(){try{return JSON.parse(localStorage.getItem(SV))||{};}catch(e){return {};}}
+function svSave(o){try{localStorage.setItem(SV,JSON.stringify(o));}catch(e){}}
+const here=()=>location.origin+location.pathname;
+const svLinked=()=>!!sv().refresh;
+function svShow(msg){
+  const s=sv();
+  if(!$("svId").value)$("svId").value=s.id||"292969";   /* his Strava app "Vooruitgang"; the ID is not secret */
+  $("svState").textContent=msg||(svLinked()?"Gekoppeld met Strava ✓":location.protocol==="file:"?"Koppelen kan alleen in de online versie":"Niet gekoppeld");
+  $("svLink").textContent=svLinked()?"Opnieuw koppelen":"Koppel Strava";
+}
+$("svLink").onclick=()=>{
+  if(location.protocol==="file:"){svShow("Open acazaerck-ui.github.io/trainer om te koppelen");return;}
+  const id=$("svId").value.trim(),sec=$("svSec").value.trim()||sv().sec;
+  if(!id||!sec){svShow("Vul eerst Client ID en Client Secret in");return;}
+  const s=sv();s.id=id;s.sec=sec;s.state=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now());svSave(s);
+  location.href="https://www.strava.com/oauth/authorize?client_id="+encodeURIComponent(id)+"&redirect_uri="+encodeURIComponent(here())+
+    "&response_type=code&approval_prompt=auto&scope=activity:write&state="+encodeURIComponent(s.state);
+};
+async function svToken(body){
+  const s=sv();
+  const r=await fetch("https://www.strava.com/oauth/token",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({client_id:s.id,client_secret:s.sec,...body})});
+  if(!r.ok)throw new Error("Strava weigert de koppeling ("+r.status+")");
+  const j=await r.json();s.access=j.access_token;s.refresh=j.refresh_token;s.exp=j.expires_at;svSave(s);
+  return s.access;
+}
+async function svAccess(){const s=sv();if(s.access&&s.exp>Date.now()/1000+120)return s.access;return svToken({grant_type:"refresh_token",refresh_token:s.refresh});}
+/* back from Strava with ?code=... */
+(async()=>{
+  const q=new URLSearchParams(location.search);
+  if(!q.get("code")&&!q.get("error"))return;
+  history.replaceState(null,"",here());
+  $("pSetup").classList.add("show");
+  /* only accept a code that answers our own Koppel Strava click (state), never one from a link someone sent */
+  const s=sv(),st=s.state;delete s.state;svSave(s);
+  if(!st||q.get("state")!==st){svShow("Koppeling geweigerd: tik zelf op Koppel Strava");return;}
+  if(q.get("error")||!(q.get("scope")||"").includes("activity:write")){svShow("Geen toestemming gekregen om ritten te uploaden");return;}
+  try{await svToken({grant_type:"authorization_code",code:q.get("code")});svShow("Gekoppeld met Strava ✓");}
+  catch(e){svShow(e.message);}
+})();
+svShow();
+const svApi=async(path,opt={})=>{
+  const r=await fetch("https://www.strava.com/api/v3/"+path,{...opt,headers:{...(opt.headers||{}),Authorization:"Bearer "+await svAccess()}});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error((j.message||"fout")+" ("+r.status+")");return j;
+};
+let svBusy=false;
+async function svUpload(){
+  if(svBusy||!svLinked()||!S.length)return;
+  svBusy=true;$("svUp").disabled=true;$("svInfo").textContent="Naar Strava…";
+  const t=S[0].t;   /* a new ride may start while Strava is still busy */
+  try{
+    const fd=new FormData();
+    fd.append("file",new Blob([tcxText()],{type:"application/xml"}),"rit.tcx");
+    fd.append("data_type","tcx");fd.append("name",verhaal.t);fd.append("description",verhaal.d);
+    fd.append("trainer","1");fd.append("external_id","trainer-"+S[0].t);
+    let up=await svApi("uploads",{method:"POST",body:fd});
+    for(let n=0;n<20&&!up.activity_id&&!up.error;n++){await wait(2000);up=await svApi("uploads/"+up.id);}
+    if(up.error)throw new Error(/duplicate/i.test(up.error)?"Deze rit staat al in Strava":up.error);
+    if(!up.activity_id)throw new Error("Strava is nog bezig, kijk straks in Strava");
+    try{await svApi("activities/"+up.activity_id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({sport_type:"VirtualRide",trainer:true})});}catch(e){}
+    keptUpdate(t,r=>r.strava=up.activity_id);
+    if(S.length&&S[0].t===t)$("svInfo").innerHTML='In Strava ✓ <a href="https://www.strava.com/activities/'+Number(up.activity_id)+'" target="_blank" rel="noopener">bekijk</a>';
+  }catch(e){
+    const dup=/al in Strava/.test(e.message);
+    $("svInfo").textContent=dup?"Deze rit staat al in Strava ✓":"Strava: "+e.message+". Tik nog eens op Naar Strava.";
+    $("svUp").disabled=dup;
+  }finally{svBusy=false;}
+}
+$("svUp").onclick=svUpload;
+/* end screen: show the button, and send a new ride without the Edge by itself */
+function svEnd(fresh,rescued){
+  const show=svLinked()&&(rescued||records())&&S.length>=60;
+  $("svBox").style.display=show?"":"none";$("svInfo").textContent="";$("svUp").disabled=false;
+  let done=null;for(const k of [KEEP,KEEP_OLD]){const r=kept(k);if(r&&r.S&&S.length&&r.S[0].t===S[0].t)done=r.strava;}
+  if(show&&done){$("svInfo").innerHTML='In Strava ✓ <a href="https://www.strava.com/activities/'+Number(done)+'" target="_blank" rel="noopener">bekijk</a>';$("svUp").disabled=true;}
+  else if(show&&fresh)svUpload();
+}
+
+/* on opening: a ride without the Edge that was never saved is shown again */
+(function(){
+  let r=kept(KEEP);if(!unsaved(r))r=kept(KEEP_OLD);
+  if(!unsaved(r))return;
+  S=r.S;dist=r.dist;kj=r.kj;zoneS=r.zoneS||0;rideWorkout=r.wo||null;
+  const d=new Date(S[0].t);
+  showSummary("Niet bewaarde rit van "+d.toLocaleDateString("nl-BE")+" "+d.toLocaleTimeString("nl-BE",{hour:"2-digit",minute:"2-digit"}));
+  svEnd(false,true);
+  $("statInfo").textContent="";
+  $("save").style.display="";
+  $("pEnd").querySelector(".hint").textContent="Deze rit is nog niet bewaard. Tik op Bewaar .tcx, kies Bewaar in Bestanden (iCloud Drive > Trainer ritten) en importeer hem later op connect.garmin.com.";
+})();
+</script>
+</body>
+</html>
