@@ -367,8 +367,9 @@ let cp=null,run=false,t0=0,i=0,sT0=0,S=[],power=0,cad=0,timer=null,
     hr=0,hrAt=0,spd=0,dist=0,pedal=0,autoDone=false;
 
 const COL={under:"#ff453a",on:"#30d158",over:"#ff453a",idle:"#8e8e93"};
-/* heart rate zones in bpm (upper limits Z1 to Z4, from his Strava zones) and Garmin's zone colours */
-const HRZ=[131,164,180,196];
+/* heart rate zones in bpm (upper limits Z1 to Z4), same as his Forerunner 965: %LTHR with LTHR 177
+   (63-77-88-94-102%), and Garmin's zone colours */
+const HRZ=[136,155,165,180];
 const ZCOL=["--z1","--z2","--z3","--z4","--z5"];
 function hrZone(h){
   const el=$("hrZone");
