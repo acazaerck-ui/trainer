@@ -72,6 +72,7 @@ input[type=checkbox]{width:auto;padding:0}
 .right{text-align:right}
 .block{font-size:clamp(18px,2.2vw,26px);font-weight:500;margin-bottom:6px}
 .right .lab{margin-top:10px}
+.right .ridelab{margin-top:4px;font-size:12px;opacity:.8;min-height:1.2em}
 .rpmgoal{font-size:clamp(15px,1.7vw,20px);color:var(--mute);margin-bottom:8px}
 .rpmgoal b{color:var(--paper);font-weight:600}
 .hint2{font-size:clamp(22px,2.8vw,34px);font-weight:600;color:var(--over);min-height:1.2em;margin-bottom:6px}
@@ -206,6 +207,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
       <div class="num" id="left">0:00</div>
     </div>
     <div class="lab" id="leftLab">resterend in dit blok</div>
+    <div class="lab ridelab" id="rideLab"></div>
   </div>
   <div class="band">
       <div class="track"><div class="zone" id="zone"></div><div class="mark" id="mark" style="left:50%"></div></div>
@@ -849,7 +851,7 @@ function stopClock(){
 let paused=null,armed=false,idleN=0,goN=0,segK=0,streak=0,best=0,actx=null;
 function arm(){
   if(run)return;
-  armed=true;autoDone=false;pedal=0;$("start").textContent="Klaar ✓";target(WORKOUT[0].watt);
+  armed=true;autoDone=false;pedal=0;$("rideLab").textContent="";$("start").textContent="Klaar ✓";target(WORKOUT[0].watt);
   $("pStart").classList.remove("show");
   note(edgeOn()?"Start je workout op de Edge en trap weg.":mode==="ipad-edge"?"Start een rit op je Edge en begin te trappen.":"Begin te trappen, dan start de tijd.",7000);
 }
@@ -1016,6 +1018,7 @@ function tick(){
   }else if(k>segK){segK=k;chime();say(pick(STUK)+" Nog "+(n-k)+(n-k===1?" stukje":" stukjes")+" in dit blok.");}
 
   $("tt").textContent=hms((now-t0)/1000);
+  $("rideLab").textContent="rit "+hms(secs)+" van "+hms(total);
   $("block").textContent=s.name;
   $("segs").innerHTML=n>1?Array.from({length:n},(_,x)=>`<i class="${x<k?"done":x===k?"now":""}"></i>`).join(""):"";
   $("left").textContent=mmss(n>1?segRest:rest);
