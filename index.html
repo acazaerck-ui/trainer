@@ -293,7 +293,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
   </div>
   <div class="endActions">
     <button class="bigstart" id="again">Klaar</button>
-    <button id="save">Bewaar .tcx</button>
+    <button id="save">Bewaar voor Garmin</button>
     <span id="svBox" style="display:none"><button id="svUp">Naar Strava</button> <span class="statinfo" id="svInfo" style="margin:0"></span></span>
   </div>
   <p class="statinfo" id="saveInfo" style="margin-top:-12px"></p>
@@ -979,7 +979,7 @@ function showSummary(title){
   $("sCd").textContent=cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length)+" rpm":"--";
   $("sDist").textContent=nl(dist/1000,1)+" km";
   $("save").style.display=records()?"":"none";
-  $("pEnd").querySelector(".hint").textContent=!records()?"Je Edge heeft de rit opgenomen. Sla hem daar op, dan staat hij vanzelf in Garmin Connect en Strava. Hier hoef je niets te bewaren.":"Bewaar als .tcx en sleep het bestand in Garmin Connect bij Activiteit importeren.";
+  $("pEnd").querySelector(".hint").textContent=!records()?"Je Edge heeft de rit opgenomen. Sla hem daar op, dan staat hij vanzelf in Garmin Connect en Strava. Hier hoef je niets te bewaren.":"Tik op Bewaar voor Garmin (een .fit-bestand) en importeer het op connect.garmin.com bij Activiteit importeren. Synchroniseer daarna je horloge twee keer.";
   makeStory();
   $("pEnd").classList.add("show");
 }
@@ -1082,10 +1082,64 @@ function tcxText(){
 <Calories>${Math.round(kj)}</Calories><Intensity>Active</Intensity><TriggerMethod>Manual</TriggerMethod>
 <Track>${pts}</Track></Lap><Notes>${esc(verhaal.t+"\n\n"+verhaal.d)}</Notes></Activity></Activities></TrainingCenterDatabase>`;
 }
+/* .fit for Garmin Connect. Test (nov 2026): Garmin only gives Training Load / Training Effect to an
+   imported ride when the file says it comes from a Garmin device or its own Tacx app. So the file says
+   "Tacx Training app (Windows)": manufacturer 89, product 20533, serial 1, software 1.30, the same as
+   the open-source Peloton-to-Garmin has done since 2024. Unofficial: Garmin can stop accepting it. */
+const FIT_DEV={man:89,prod:20533,serial:1,sw:130};
+function fitBytes(){
+  const T={enum:[0x00,1,0xFF],u8:[0x02,1,0xFF],u16:[0x84,2,0xFFFF],u32:[0x86,4,0xFFFFFFFF],u32z:[0x8C,4,0]};
+  const out=[],defs={};let nextLocal=0;
+  const ft=iso=>Math.round(Date.parse(iso)/1000)-631065600; /* FIT time counts from 31 Dec 1989 */
+  function msg(num,fields){
+    const key=num+":"+fields.map(f=>f[0]+f[1]).join(",");
+    let l=defs[key];
+    if(l===undefined){
+      l=defs[key]=nextLocal++;
+      out.push(0x40|l,0,0,num&255,num>>8,fields.length);
+      for(const [n,t] of fields)out.push(n,T[t][1],T[t][0]);
+    }
+    out.push(l);
+    for(const [,t,v0] of fields){
+      const [,size,bad]=T[t],max=size===1?254:size===2?65534:4294967294;
+      const v=v0==null||!isFinite(v0)||v0<0?bad:Math.min(max,Math.round(v0));
+      for(let b=0;b<size;b++)out.push(Math.floor(v/2**(8*b))&255);
+    }
+  }
+  const t0=ft(S[0].t),t1=ft(S[S.length-1].t)+1,n=S.length;
+  const spd=S.map((x,k)=>k?Math.max(0,x.d-S[k-1].d):x.d); /* m/s, one sample a second */
+  const hrs=S.map(x=>x.h).filter(h=>h>0),avg=a=>a.length?a.reduce((p,q)=>p+q,0)/a.length:null;
+  const sum={
+    dist:dist*100,kcal:Math.round(kj),
+    avgP:avg(S.map(x=>x.p||0)),maxP:Math.max(...S.map(x=>x.p||0)),
+    avgC:avg(S.map(x=>x.c||0).filter(c=>c>0)),maxC:Math.max(...S.map(x=>x.c||0)),
+    avgH:avg(hrs),maxH:hrs.length?Math.max(...hrs):null,
+    avgS:dist/n*1000,maxS:Math.max(...spd)*1000
+  };
+  const D=FIT_DEV;
+  msg(0,[[0,"enum",4],[1,"u16",D.man],[2,"u16",D.prod],[3,"u32z",D.serial],[4,"u32",t0]]);
+  msg(21,[[253,"u32",t0],[0,"enum",0],[1,"enum",0],[4,"u8",0],[3,"u32",0]]);
+  msg(23,[[253,"u32",t0],[0,"u8",0],[2,"u16",D.man],[4,"u16",D.prod],[3,"u32z",D.serial],[5,"u16",D.sw],[25,"enum",5]]);
+  msg(12,[[0,"enum",2],[1,"enum",6]]); /* cycling, indoor cycling */
+  S.forEach((x,k)=>msg(20,[[253,"u32",ft(x.t)],[7,"u16",x.p||0],[4,"u8",x.c||0],[3,"u8",x.h>0?x.h:null],[5,"u32",x.d*100],[6,"u16",spd[k]*1000]]));
+  msg(21,[[253,"u32",t1],[0,"enum",0],[1,"enum",4],[4,"u8",0],[3,"u32",0]]);
+  const tot=[[7,"u32",n*1000],[8,"u32",n*1000],[9,"u32",sum.dist],[11,"u16",sum.kcal]];
+  msg(19,[[254,"u16",0],[253,"u32",t1],[2,"u32",t0],...tot,[0,"enum",9],[1,"enum",1],[24,"enum",7],[25,"enum",2],[39,"enum",6],
+    [13,"u16",sum.avgS],[14,"u16",sum.maxS],[15,"u8",sum.avgH],[16,"u8",sum.maxH],[17,"u8",sum.avgC],[18,"u8",sum.maxC],[19,"u16",sum.avgP],[20,"u16",sum.maxP]]);
+  msg(18,[[254,"u16",0],[253,"u32",t1],[2,"u32",t0],...tot,[0,"enum",8],[1,"enum",1],[5,"enum",2],[6,"enum",6],[25,"u16",0],[26,"u16",1],
+    [14,"u16",sum.avgS],[15,"u16",sum.maxS],[16,"u8",sum.avgH],[17,"u8",sum.maxH],[18,"u8",sum.avgC],[19,"u8",sum.maxC],[20,"u16",sum.avgP],[21,"u16",sum.maxP],[48,"u32",kj*1000]]);
+  msg(34,[[253,"u32",t1],[0,"u32",n*1000],[1,"u16",1],[2,"enum",0],[3,"enum",26],[4,"enum",1],[5,"u32",t1-new Date(S[0].t).getTimezoneOffset()*60]]);
+  const crc=(c,bytes)=>{const tb=[0,0xCC01,0xD801,0x1400,0xF001,0x3C00,0x2800,0xE401,0xA001,0x6C00,0x7800,0xB401,0x5000,0x9C01,0x8801,0x4400];
+    for(const b of bytes){let t=tb[c&15];c=(c>>4)&0xFFF;c=c^t^tb[b&15];t=tb[c&15];c=(c>>4)&0xFFF;c=c^t^tb[(b>>4)&15];}return c;};
+  const h=[14,0x20,0x54,0x08,out.length&255,(out.length>>8)&255,(out.length>>16)&255,(out.length>>>24)&255,0x2E,0x46,0x49,0x54]; /* protocol 2.0, profile 21.32 */
+  const hc=crc(0,h);h.push(hc&255,hc>>8);
+  const all=h.concat(out),c=crc(0,all);all.push(c&255,c>>8);
+  return new Uint8Array(all);
+}
 /* on the iPad the share sheet (Bewaar in Bestanden, iCloud Drive, Google Drive, mail); elsewhere a download */
 $("save").onclick=async()=>{
-  const naam="rit-"+S[0].t.slice(0,16).replace(/[:T]/g,"-")+".tcx";
-  const file=new File([tcxText()],naam,{type:"application/vnd.garmin.tcx+xml"});
+  const naam="rit-"+S[0].t.slice(0,16).replace(/[:T]/g,"-")+".fit";
+  const file=new File([fitBytes()],naam,{type:"application/vnd.ant.fit"});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     try{await navigator.share({files:[file],title:naam});rideSaved();$("saveInfo").textContent="Bewaard.";return;}
     catch(e){if(e&&e.name==="AbortError")return;}
@@ -1189,7 +1243,7 @@ function svEnd(fresh,rescued){
   svEnd(false,true);
   $("statInfo").textContent="";
   $("save").style.display="";
-  $("pEnd").querySelector(".hint").textContent="Deze rit is nog niet bewaard. Tik op Bewaar .tcx, kies Bewaar in Bestanden (iCloud Drive > Trainer ritten) en importeer hem later op connect.garmin.com.";
+  $("pEnd").querySelector(".hint").textContent="Deze rit is nog niet bewaard. Tik op Bewaar voor Garmin, kies Bewaar in Bestanden (iCloud Drive > Trainer ritten) en importeer hem later op connect.garmin.com.";
 })();
 </script>
 </body>
