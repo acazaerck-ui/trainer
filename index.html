@@ -233,7 +233,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
 <div class="panel startp" id="pStart">
   <h2>Klaar om te fietsen?</h2>
   <div class="seg" id="modeSeg">
-    <button data-m="ipad-edge">iPad stuurt, Edge neemt op</button><button data-m="edge">Edge stuurt alles</button><button data-m="ipad">Alleen iPad</button>
+    <button data-m="ipad">Alleen iPad</button><button data-m="ipad-edge">iPad stuurt, Edge neemt op</button><button data-m="edge">Edge stuurt alles</button>
   </div>
   <p class="hint" id="modeHint" style="margin-top:-8px"></p>
   <div class="cards" id="cards"></div>
@@ -389,7 +389,11 @@ const $=x=>document.getElementById(x);
    "ipad":      this page drives and records: it keeps the ride, saves a .tcx and sends it to Strava
    It can be changed any time except during a ride; with the trainer connected the connection is set up again. */
 const MODES=["ipad-edge","edge","ipad"];
-let mode="ipad-edge";try{const v=localStorage.getItem("mode");if(MODES.includes(v))mode=v;}catch(e){}
+/* default "Alleen iPad" since 8 nov 2026 (rides go to Strava with the story, .fit for Garmin);
+   a device that still has the old default stored is moved over once */
+let mode="ipad";try{const v=localStorage.getItem("mode");
+  if(v==="ipad-edge"&&!localStorage.getItem("modeV2"))localStorage.setItem("mode","ipad");else if(MODES.includes(v))mode=v;
+  localStorage.setItem("modeV2","1");}catch(e){}
 const edgeOn=()=>mode==="edge";
 const records=()=>mode==="ipad";
 function setMode(m){
