@@ -304,7 +304,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
     <div class="storyT" id="storyT"></div>
     <div class="lab">Beschrijving</div>
     <div class="storyD" id="storyD"></div>
-    <div class="rowr" style="flex-wrap:wrap"><button id="cpT">Kopieer titel</button><button id="cpD">Kopieer beschrijving</button><button id="reroll">Ander grapje</button><span class="statinfo" id="cpInfo" style="margin:0"></span></div>
+    <div class="rowr" style="flex-wrap:wrap"><button id="cpT">Kopieer titel</button><button id="cpD">Kopieer beschrijving</button><button id="reroll">Ander grapje</button><button id="oneLine">Eén zin</button><button id="sumUp">Samenvatting</button><span class="statinfo" id="cpInfo" style="margin:0"></span></div>
   </div>
   <div class="share">
     <div class="shareCol" id="svBox" style="display:none"><button class="bigshare strava" id="svUp">Naar Strava</button><span class="statinfo" id="svInfo"></span></div>
@@ -985,7 +985,7 @@ function score(wo){
     n++;ok+=g;const q=per[x.b]||(per[x.b]={ok:0,n:0});q.n++;q.ok+=g;}
   const pct=n?Math.round(ok/n*100):0;let worst="",wp=101;
   for(const k in per){const q=per[k];if(q.n<60)continue;const p=Math.round(q.ok/q.n*100);if(p<wp){wp=p;worst=W[k].name.replace(/^\d+ · /,"")+(/^\d+ · /.test(W[k].name)?" "+W[k].name.match(/^(\d+)/)[1]:"")+": "+p+"%";}}
-  return {pct,worst:wp<90?"minst: "+worst:(n?"alle blokken goed":"")};
+  return {pct,wp,wName:worst.replace(/: \d+%$/,""),worst:wp<90?"minst: "+worst:(n?"alle blokken goed":"")};
 }
 function rideStats(){
   const n=S.length,hs=S.filter(x=>x.h).map(x=>x.h),cs=S.filter(x=>x.c).map(x=>x.c);
@@ -993,28 +993,44 @@ function rideStats(){
     km:nl(dist/1000,1),cad:cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length):0,
     hr:hs.length?Math.round(hs.reduce((a,b)=>a+b,0)/hs.length):0,hrMax:hs.length?Math.max(...hs):0,wo:rideWorkout||$("pick").value};
 }
-function makeStory(){
+/* description: a joke (two sentences + numbers), just one sentence, or a plain summary; picked at random, buttons to switch */
+const SOORT={"Halfuur makkelijk":"Zone 2 endurance","Halfuur pittig":"Sweet spot intervals","Weekend lang (Z2 cadans 75)":"Zone 2 with cadence drills"};
+function summaryText(s){
+  const sc=score(s.wo),d=decPct(s.wo);
+  let t=`${SOORT[s.wo]||"Indoor ride"}, ${s.min} min. Avg ${s.w} W`+(s.cad?` at ${s.cad} rpm`:"")+(s.hr?`, HR ${s.hr} (max ${s.hrMax})`:"")+".";
+  t+=` Cadence on target ${sc.pct}%`+(sc.wp<90&&sc.wName?`, weakest block: ${sc.wName} (${sc.wp}%)`:"")+".";
+  if(d!==null)t+=` Decoupling ${nl(d,1)}%: `+(d<5?"aerobic base looks solid.":d<8?"decent, room to grow.":"heart rate drifted, more Z2 needed.");
+  return t;
+}
+function makeStory(kind){
+  if(!kind){const r=Math.random();kind=r<1/3?"samen":r<2/3?"kort":"grap";}
   const s=rideStats(),pool=GRAP.filter(g=>!g.if||g.if(s));
-  const a=pool.splice(Math.floor(Math.random()*pool.length),1)[0],b=pool[Math.floor(Math.random()*pool.length)];
+  const a=pool.splice(Math.floor(Math.random()*pool.length),1)[0],b=pool.length?pool[Math.floor(Math.random()*pool.length)]:{f:()=>""};
   const titel=(TITELS[s.wo]||"Indoor rit")+(S.length<(PRESETS[s.wo]?PRESETS[s.wo].reduce((a,x)=>a+x.min*60,0):sumT())-60?" (ingekort)":"");
   const cijfers=`${s.w} W avg · ${s.kj} kcal · ${s.zone}% on target`+(s.hr?` · HR ${s.hr} (max ${s.hrMax})`:"")+(s.cad?` · ${s.cad} rpm`:"");
-  verhaal={t:titel,d:a.f(s)+" "+b.f(s)+"\n"+cijfers+"\n"+TAG[Math.floor(Math.random()*TAG.length)]};
+  const tag=TAG[Math.floor(Math.random()*TAG.length)];
+  verhaal={t:titel,soort:kind,d:kind==="kort"?a.f(s):kind==="samen"?summaryText(s)+"\n"+tag:(a.f(s)+" "+b.f(s)).trim()+"\n"+cijfers+"\n"+tag};
   $("storyT").textContent=verhaal.t;$("storyD").textContent=verhaal.d;$("cpInfo").textContent="";
 }
 const copy=async(x,what)=>{try{await navigator.clipboard.writeText(x);$("cpInfo").textContent=what+" gekopieerd";}catch(e){$("cpInfo").textContent="Kopiëren lukte niet, selecteer de tekst zelf";}};
 $("cpT").onclick=()=>copy(verhaal.t,"Titel");
 $("cpD").onclick=()=>copy(verhaal.d,"Beschrijving");
-$("reroll").onclick=()=>{makeStory();svNewStory();};
+$("reroll").onclick=()=>{makeStory("grap");svNewStory();};
+$("oneLine").onclick=()=>{makeStory("kort");svNewStory();};
+$("sumUp").onclick=()=>{makeStory("samen");svNewStory();};
 let rideWorkout=null;
 
 /* aerobic decoupling (Pw:HR): watts per heartbeat in the 1st vs the 2nd half, after a 5-minute warm-up.
    Only for the steady workouts and rides of 20 minutes or more; under 5% = good aerobic base at this power */
-function decoupling(wo){
-  if(!["Halfuur makkelijk","Weekend lang (Z2 cadans 75)"].includes(wo)||S.length<1200)return "";
-  const xs=S.slice(300).filter(x=>x.h>0&&x.p>0);if(xs.length<600)return "";
+function decPct(wo){
+  if(!["Halfuur makkelijk","Weekend lang (Z2 cadans 75)"].includes(wo)||S.length<1200)return null;
+  const xs=S.slice(300).filter(x=>x.h>0&&x.p>0);if(xs.length<600)return null;
   const half=Math.floor(xs.length/2),ef=a=>a.reduce((q,x)=>q+x.p,0)/a.reduce((q,x)=>q+x.h,0);
-  const e1=ef(xs.slice(0,half)),e2=ef(xs.slice(half)),d=(e1-e2)/e1*100;
-  return "ontkoppeling "+nl(Math.max(0,d),1)+"% · "+(d<5?"goed":d<8?"ok":"veel");
+  const e1=ef(xs.slice(0,half)),e2=ef(xs.slice(half));return Math.max(0,(e1-e2)/e1*100);
+}
+function decoupling(wo){
+  const d=decPct(wo);if(d===null)return "";
+  return "ontkoppeling "+nl(d,1)+"% · "+(d<5?"goed":d<8?"ok":"veel");
 }
 function showSummary(title){
   const secs=S.length,wo=rideWorkout||$("pick").value,d=new Date(S[0].t);
