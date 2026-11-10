@@ -127,6 +127,16 @@ input{width:68px;background:var(--slab);border:1px solid var(--hair);color:var(-
 .sum b{display:block;font-family:var(--round);font-size:clamp(24px,3.4vw,38px);font-weight:600;letter-spacing:-.01em;margin-top:2px}
 .endSub{font-size:15px;color:var(--mute);margin-top:4px}
 .endActions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* end screen: two big share buttons (Strava, Garmin via AirDrop) */
+.share{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;max-width:980px;width:100%}
+.shareCol{display:flex;flex-direction:column;gap:6px}
+.shareCol .statinfo{margin:0 4px;min-height:1.2em}
+button.bigshare{font-size:20px;font-weight:600;padding:20px 16px;border-radius:16px;color:#fff;border:0;width:100%}
+button.bigshare.strava{background:#fc4c02}
+button.bigshare.strava:hover:not(:disabled){background:#ff6a2b}
+button.bigshare.garmin{background:#0a84ff}
+button.bigshare.garmin:hover:not(:disabled){background:#3a9bff}
+button.bigshare.ok,button.bigshare.ok:disabled{background:var(--on);color:#000;opacity:1}
 /* settings: grouped rows like iOS Settings */
 .phead{display:flex;justify-content:space-between;align-items:center;max-width:680px;width:100%}
 .grp{max-width:680px;width:100%}
@@ -225,7 +235,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
 <canvas id="profile"></canvas>
 
 <div class="feet">
-  <div><span class="lab">In je zone</span><b id="streak">0:00</b><span class="statinfo" id="streakBest" style="margin:2px 0 0;display:block"></span></div>
+  <div><span class="lab">Rit</span><b id="rideT">0:00</b><span class="statinfo" id="rideOf" style="margin:2px 0 0;display:block"></span></div>
   <span id="tt" hidden>0:00</span>
   <div><span class="lab">Cadans</span><b><span id="cd">0</span><small>rpm</small></b></div>
   <div><span class="lab">Hartslag</span><b><span id="hr">--</span><small>bpm</small></b><span class="zpill" id="hrZone">--</span></div>
@@ -282,7 +292,7 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
   <div class="sum">
     <div class="tile"><span class="lab">Duur</span><b id="sDur">--</b></div>
     <div class="tile"><span class="lab">Gemiddeld</span><b id="sAvg">--</b></div>
-    <div class="tile"><span class="lab">In zone</span><b id="sZone">--</b></div>
+    <div class="tile"><span class="lab">Geslaagd</span><b id="sZone">--</b><span class="statinfo" id="sWorst" style="margin:4px 0 0;display:block"></span></div>
     <div class="tile"><span class="lab">Calorieën</span><b id="sKj">--</b></div>
     <div class="tile"><span class="lab">Gem. hartslag</span><b id="sHr">--</b><span class="statinfo" id="sDec" style="margin:4px 0 0;display:block"></span></div>
     <div class="tile"><span class="lab">Max. hartslag</span><b id="sHrMax">--</b></div>
@@ -296,13 +306,12 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
     <div class="storyD" id="storyD"></div>
     <div class="rowr" style="flex-wrap:wrap"><button id="cpT">Kopieer titel</button><button id="cpD">Kopieer beschrijving</button><button id="reroll">Ander grapje</button><span class="statinfo" id="cpInfo" style="margin:0"></span></div>
   </div>
-  <div class="endActions">
-    <button class="bigstart" id="again">Klaar</button>
-    <button id="save">Bewaar voor Garmin</button>
-    <span id="svBox" style="display:none"><button id="svUp">Naar Strava</button> <span class="statinfo" id="svInfo" style="margin:0"></span></span>
+  <div class="share">
+    <div class="shareCol" id="svBox" style="display:none"><button class="bigshare strava" id="svUp">Naar Strava</button><span class="statinfo" id="svInfo"></span></div>
+    <div class="shareCol" id="saveCol"><button class="bigshare garmin" id="save">Naar Garmin</button><span class="statinfo" id="saveInfo"></span></div>
   </div>
-  <p class="statinfo" id="saveInfo" style="margin-top:-12px"></p>
   <p class="hint"></p>
+  <div class="endActions"><button class="go" id="again">Klaar</button></div>
 </div>
 
 <script>
@@ -948,7 +957,7 @@ function end(done){
 const TITELS={"Halfuur makkelijk":"Koffieritje","Halfuur pittig":"Drie bergjes","Weekend lang (Z2 cadans 75)":"Zondagse klassieker"};
 const GRAP=[
   {f:s=>`${s.kj} kcal burned. That's roughly ${(s.kj/150).toFixed(1).replace(".",",")} frikandellen. Not that I'm counting.`},
-  {f:s=>`${s.zone}% in the zone. The other ${100-s.zone}% I was staring at the fan.`,if:s=>s.zone<100},
+  {f:s=>`${s.zone}% on target cadence. The other ${100-s.zone}% I was staring at the fan.`,if:s=>s.zone<100},
   {f:s=>`${s.km} km without a single traffic light, pothole or headwind.`},
   {f:s=>`Average cadence ${s.cad} rpm. The Tacx filed no complaints.`,if:s=>s.cad},
   {f:s=>`${s.w} W for ${s.min} minutes: enough to keep ${Math.max(1,Math.round(s.w/8))} LED bulbs on. The living room stayed dark anyway.`},
@@ -968,9 +977,19 @@ const TAG=[
   "No Zwift subscriptions were harmed in the making of this ride. Home-built trainer system."
 ];
 let verhaal={t:"",d:""};
+/* "Geslaagd": share of the ride with the cadence in the block's target, with 3 rpm slack (like a Garmin workout score;
+   the watts don't count, the iPad holds those in ERG). Plus the block where it went worst. */
+function score(wo){
+  const W=PRESETS[wo]||WORKOUT,per={};let ok=0,n=0;
+  for(const x of S){const b=W[x.b];if(!b)continue;const g=x.c>=b.rpm[0]-3&&x.c<=b.rpm[1]+3;
+    n++;ok+=g;const q=per[x.b]||(per[x.b]={ok:0,n:0});q.n++;q.ok+=g;}
+  const pct=n?Math.round(ok/n*100):0;let worst="",wp=101;
+  for(const k in per){const q=per[k];if(q.n<60)continue;const p=Math.round(q.ok/q.n*100);if(p<wp){wp=p;worst=W[k].name.replace(/^\d+ · /,"")+(/^\d+ · /.test(W[k].name)?" "+W[k].name.match(/^(\d+)/)[1]:"")+": "+p+"%";}}
+  return {pct,worst:wp<90?"minst: "+worst:(n?"alle blokken goed":"")};
+}
 function rideStats(){
   const n=S.length,hs=S.filter(x=>x.h).map(x=>x.h),cs=S.filter(x=>x.c).map(x=>x.c);
-  return {min:Math.round(n/60),w:Math.round(S.reduce((a,x)=>a+x.p,0)/n),kj:Math.round(kj),zone:Math.round(zoneS/n*100),
+  return {min:Math.round(n/60),w:Math.round(S.reduce((a,x)=>a+x.p,0)/n),kj:Math.round(kj),zone:score(rideWorkout||$("pick").value).pct,
     km:nl(dist/1000,1),cad:cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length):0,
     hr:hs.length?Math.round(hs.reduce((a,b)=>a+b,0)/hs.length):0,hrMax:hs.length?Math.max(...hs):0,wo:rideWorkout||$("pick").value};
 }
@@ -978,14 +997,14 @@ function makeStory(){
   const s=rideStats(),pool=GRAP.filter(g=>!g.if||g.if(s));
   const a=pool.splice(Math.floor(Math.random()*pool.length),1)[0],b=pool[Math.floor(Math.random()*pool.length)];
   const titel=(TITELS[s.wo]||"Indoor rit")+(S.length<(PRESETS[s.wo]?PRESETS[s.wo].reduce((a,x)=>a+x.min*60,0):sumT())-60?" (ingekort)":"");
-  const cijfers=`${s.w} W avg · ${s.kj} kcal · ${s.zone}% in zone`+(s.hr?` · HR ${s.hr} (max ${s.hrMax})`:"")+(s.cad?` · ${s.cad} rpm`:"");
+  const cijfers=`${s.w} W avg · ${s.kj} kcal · ${s.zone}% on target`+(s.hr?` · HR ${s.hr} (max ${s.hrMax})`:"")+(s.cad?` · ${s.cad} rpm`:"");
   verhaal={t:titel,d:a.f(s)+" "+b.f(s)+"\n"+cijfers+"\n"+TAG[Math.floor(Math.random()*TAG.length)]};
   $("storyT").textContent=verhaal.t;$("storyD").textContent=verhaal.d;$("cpInfo").textContent="";
 }
 const copy=async(x,what)=>{try{await navigator.clipboard.writeText(x);$("cpInfo").textContent=what+" gekopieerd";}catch(e){$("cpInfo").textContent="Kopiëren lukte niet, selecteer de tekst zelf";}};
 $("cpT").onclick=()=>copy(verhaal.t,"Titel");
 $("cpD").onclick=()=>copy(verhaal.d,"Beschrijving");
-$("reroll").onclick=makeStory;
+$("reroll").onclick=()=>{makeStory();svNewStory();};
 let rideWorkout=null;
 
 /* aerobic decoupling (Pw:HR): watts per heartbeat in the 1st vs the 2nd half, after a 5-minute warm-up.
@@ -1004,7 +1023,7 @@ function showSummary(title){
   $("saveInfo").textContent="";
   $("sDur").textContent=hms(secs);
   $("sAvg").textContent=Math.round(S.reduce((a,s)=>a+s.p,0)/S.length)+" W";
-  $("sZone").textContent=Math.round(zoneS/secs*100)+"%";
+  const sc=score(wo);$("sZone").textContent=sc.pct+"%";$("sWorst").textContent=sc.worst;
   $("sKj").textContent=Math.round(kj)+" kcal";
   const hs=S.filter(x=>x.h).map(x=>x.h),cs=S.filter(x=>x.c).map(x=>x.c);
   $("sHr").textContent=hs.length?Math.round(hs.reduce((a,b)=>a+b,0)/hs.length)+" bpm":"--";
@@ -1012,8 +1031,8 @@ function showSummary(title){
   $("sDec").textContent=decoupling(wo);
   $("sCd").textContent=cs.length?Math.round(cs.reduce((a,b)=>a+b,0)/cs.length)+" rpm":"--";
   $("sDist").textContent=nl(dist/1000,1)+" km";
-  $("save").style.display=records()?"":"none";
-  $("pEnd").querySelector(".hint").textContent=!records()?"Je Edge heeft de rit opgenomen. Sla hem daar op, dan staat hij vanzelf in Garmin Connect en Strava. Hier hoef je niets te bewaren.":"Tik op Bewaar voor Garmin, kies Bewaar in Bestanden > iCloud Drive > Trainer ritten. Je Mac zet de rit dan vanzelf in Garmin. Synchroniseer daarna je horloge twee keer.";
+  $("saveCol").style.display=records()?"":"none";garminDone(false);
+  $("pEnd").querySelector(".hint").textContent=!records()?"Je Edge heeft de rit opgenomen. Sla hem daar op, dan staat hij vanzelf in Garmin Connect en Strava. Hier hoef je niets te bewaren.":"Naar Garmin: kies AirDrop naar je Mac (of Bewaar in Bestanden > iCloud Drive > Trainer ritten). De Mac zet de rit dan vanzelf in Garmin.";
   makeStory();
   $("pEnd").classList.add("show");
 }
@@ -1060,7 +1079,7 @@ function tick(){
   }
 
   $("tt").textContent=hms((now-t0)/1000);
-  $("rideLab").textContent="rit "+hms(secs)+" van "+hms(total);
+  $("rideT").textContent=hms(secs);$("rideOf").textContent="van "+hms(total);
   $("block").textContent=s.name;
   $("segs").innerHTML=n>1?Array.from({length:n},(_,x)=>`<i class="${x<k?"done":x===k?"now":""}"></i>`).join(""):"";
   $("left").textContent=mmss(n>1?segRest:rest);
@@ -1069,8 +1088,6 @@ function tick(){
   ring(n>1?segRest/sl:rest/len,rest<=10);
   $("avg").textContent=(S.length?Math.round(S.reduce((a,x)=>a+x.p,0)/S.length):0)+" W";
   $("kj").textContent=Math.round(kj); /* kJ of work is about kcal burned when cycling (body ~24% efficient) */
-  $("streak").textContent=mmss(streak);
-  $("streakBest").textContent=best>=60?"beste "+mmss(best):"";
 
   if(moved||k>0&&el-k*sl<2){/* just announced */}
   else if(n===1&&!half&&el>=len/2&&len>=300){half=true;say(pick(HALF));}
@@ -1196,7 +1213,7 @@ $("save").onclick=async()=>{
   const naam="rit-"+S[0].t.slice(0,16).replace(/[:T]/g,"-")+(titel?" "+titel:"")+".fit";
   const file=new File([fitBytes()],naam,{type:"application/vnd.ant.fit"});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:naam});rideSaved();$("saveInfo").textContent="Bewaard.";return;}
+    try{await navigator.share({files:[file],title:naam});rideSaved();garminDone(true);$("saveInfo").textContent="Via AirDrop of iCloud zet je Mac hem vanzelf in Garmin.";return;}
     catch(e){if(e&&e.name==="AbortError")return;}
   }
   const a=document.createElement("a");
@@ -1204,9 +1221,10 @@ $("save").onclick=async()=>{
   /* on the iPad a download often silently does nothing: then the ride stays kept until a share works */
   const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1;
   if(ios){$("saveInfo").textContent="Bewaren lukte niet via het deelmenu. De rit blijft op dit toestel staan; probeer het nog eens.";return;}
-  rideSaved();
-  $("saveInfo").textContent="Bewaard als "+naam+" in Downloads.";
+  rideSaved();garminDone(true);
+  $("saveInfo").textContent="Bewaard als "+naam+" in Downloads. De Mac zet hem vanzelf in Garmin.";
 };
+function garminDone(on){$("save").classList.toggle("ok",on);$("save").textContent=on?"Gedeeld met Garmin ✓":"Naar Garmin";}
 /* Strava: a ride without the Edge goes straight from this page to Strava (Strava allows that, CORS).
    Client ID and secret of his own Strava API app are typed in once and kept only on this device. */
 const SV="strava";
@@ -1258,7 +1276,7 @@ const svApi=async(path,opt={})=>{
 let svBusy=false;
 async function svUpload(){
   if(svBusy||!svLinked()||!S.length)return;
-  svBusy=true;$("svUp").disabled=true;$("svInfo").textContent="Naar Strava…";
+  svBusy=true;$("svUp").disabled=true;$("svUp").textContent="Bezig…";$("svInfo").textContent="";
   const t=S[0].t;   /* a new ride may start while Strava is still busy */
   try{
     const fd=new FormData();
@@ -1271,21 +1289,35 @@ async function svUpload(){
     if(!up.activity_id)throw new Error("Strava is nog bezig, kijk straks in Strava");
     try{await svApi("activities/"+up.activity_id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({sport_type:"VirtualRide",trainer:true})});}catch(e){}
     keptUpdate(t,r=>r.strava=up.activity_id);
-    if(S.length&&S[0].t===t)$("svInfo").innerHTML='In Strava ✓ <a href="https://www.strava.com/activities/'+Number(up.activity_id)+'" target="_blank" rel="noopener">bekijk</a>';
+    if(S.length&&S[0].t===t)svDone(up.activity_id);
   }catch(e){
     const dup=/al in Strava/.test(e.message);
-    $("svInfo").textContent=dup?"Deze rit staat al in Strava ✓":"Strava: "+e.message+". Tik nog eens op Naar Strava.";
-    $("svUp").disabled=dup;
+    if(dup){svDone(null);$("svInfo").textContent="Deze rit stond al in Strava";}
+    else{$("svInfo").textContent="Strava: "+e.message+". Tik nog eens op Naar Strava.";$("svUp").disabled=false;$("svUp").textContent="Naar Strava";}
   }finally{svBusy=false;}
 }
 $("svUp").onclick=svUpload;
-/* end screen: show the button, and send a new ride without the Edge by itself */
+/* Ander grapje after the ride is already in Strava: replace the description there too */
+async function svNewStory(){
+  if(!svLinked()||!S.length)return;
+  let id=null;for(const k of [KEEP,KEEP_OLD]){const r=kept(k);if(r&&r.S&&r.S[0].t===S[0].t&&r.strava)id=r.strava;}
+  if(!id)return;
+  const d=verhaal.d;$("cpInfo").textContent="Strava bijwerken…";
+  try{await svApi("activities/"+Number(id),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({description:d})});
+    if(verhaal.d===d)$("cpInfo").textContent="Nieuw grapje staat in Strava ✓";}
+  catch(e){if(verhaal.d===d)$("cpInfo").textContent="Strava bijwerken lukte niet: "+e.message;}
+}
+function svDone(id){
+  $("svUp").classList.add("ok");$("svUp").disabled=true;$("svUp").textContent="In Strava ✓";
+  $("svInfo").innerHTML=id?'<a href="https://www.strava.com/activities/'+Number(id)+'" target="_blank" rel="noopener">Bekijk in Strava</a>':"";
+}
+/* end screen: show the button; nothing goes to Strava until he taps it (first look at the summary, pick a joke) */
 function svEnd(fresh,rescued){
   const show=svLinked()&&(rescued||records())&&S.length>=60;
-  $("svBox").style.display=show?"":"none";$("svInfo").textContent="";$("svUp").disabled=false;
+  $("svBox").style.display=show?"":"none";$("svInfo").textContent="";
+  $("svUp").disabled=false;$("svUp").classList.remove("ok");$("svUp").textContent="Naar Strava";
   let done=null;for(const k of [KEEP,KEEP_OLD]){const r=kept(k);if(r&&r.S&&S.length&&r.S[0].t===S[0].t)done=r.strava;}
-  if(show&&done){$("svInfo").innerHTML='In Strava ✓ <a href="https://www.strava.com/activities/'+Number(done)+'" target="_blank" rel="noopener">bekijk</a>';$("svUp").disabled=true;}
-  else if(show&&fresh)svUpload();
+  if(show&&done)svDone(done);
 }
 
 /* on opening: a ride without the Edge that was never saved is shown again */
@@ -1297,8 +1329,8 @@ function svEnd(fresh,rescued){
   showSummary("Niet bewaarde rit van "+d.toLocaleDateString("nl-BE")+" "+d.toLocaleTimeString("nl-BE",{hour:"2-digit",minute:"2-digit"}));
   svEnd(false,true);
   $("statInfo").textContent="";
-  $("save").style.display="";
-  $("pEnd").querySelector(".hint").textContent="Deze rit is nog niet bewaard. Tik op Bewaar voor Garmin en kies Bewaar in Bestanden > iCloud Drive > Trainer ritten. Je Mac zet hem dan vanzelf in Garmin.";
+  $("saveCol").style.display="";
+  $("pEnd").querySelector(".hint").textContent="Deze rit staat nog niet in Garmin. Tik op Naar Garmin en kies AirDrop naar je Mac (of Bewaar in Bestanden > iCloud Drive > Trainer ritten).";
 })();
 </script>
 </body>
