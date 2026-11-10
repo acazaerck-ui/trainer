@@ -1,18 +1,16 @@
 {
-  "naam": "Soepel draaien",
-  "dag": "2026-11-13",
-  "tot": "2026-11-13",
-  "uitleg": "Rustige Z2 met vier korte stukjes snel trappen. Licht gehouden: je bent net weer op gang na vorige week.",
+  "naam": "Lichte draaimolen",
+  "dag": "2026-11-11",
+  "tot": "2026-11-11",
+  "uitleg": "Rustige Z2 met drie stukjes van 2 minuten vlot trappen. Licht gehouden na een volle dag, zodat je fris blijft voor de rest van de week.",
   "blokken": [
     {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
-    {"name": "1 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
-    {"name": "2 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
-    {"name": "2 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
-    {"name": "3 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
-    {"name": "3 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
-    {"name": "4 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
-    {"name": "4 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
-    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
+    {"name": "1 · Z2", "min": 5, "watt": 122, "rpm": [85, 95]},
+    {"name": "1 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
+    {"name": "2 · Z2", "min": 5, "watt": 125, "rpm": [85, 95]},
+    {"name": "2 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
+    {"name": "3 · Z2", "min": 5, "watt": 125, "rpm": [85, 95]},
+    {"name": "3 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
+    {"name": "Uitbollen", "min": 4, "watt": 100, "rpm": [85, 95]}
   ]
 }
