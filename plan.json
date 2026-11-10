@@ -1,0 +1,18 @@
+{
+  "naam": "Soepel draaien",
+  "dag": "2026-11-13",
+  "tot": "2026-11-13",
+  "uitleg": "Rustige Z2 met vier korte stukjes snel trappen. Licht gehouden: je bent net weer op gang na vorige week.",
+  "blokken": [
+    {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
+    {"name": "1 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
+    {"name": "1 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
+    {"name": "2 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
+    {"name": "2 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
+    {"name": "3 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
+    {"name": "3 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
+    {"name": "4 · Z2", "min": 4, "watt": 128, "rpm": [85, 95]},
+    {"name": "4 · Souplesse", "min": 1, "watt": 115, "rpm": [100, 110]},
+    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
+  ]
+}

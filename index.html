@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://www.strava.com; worker-src blob:; img-src data: blob:; media-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' https://www.strava.com; worker-src blob:; img-src data: blob:; media-src data: blob:; base-uri 'none'; form-action 'none'">
 <title>Trainer</title>
 <style>
 :root{
@@ -171,7 +171,8 @@ label.sw{font-size:13px;color:var(--mute);display:inline-flex;align-items:center
 .seg{display:inline-flex;background:var(--slab);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap;align-self:flex-start}
 .seg button{background:transparent;border-radius:10px;color:var(--mute);padding:9px 16px}
 .seg button.on{background:var(--slab2);color:var(--paper)}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:980px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:980px;width:100%}
+.wcard .wtag{display:inline-block;background:var(--on);color:#000;border-radius:8px;padding:1px 7px;font-size:11px;font-weight:600;margin-left:6px}
 .wcard{background:var(--slab);border-radius:18px;padding:16px;border:2px solid transparent;cursor:pointer;text-align:left;color:var(--paper);font:inherit}
 .wcard.sel{border-color:var(--on)}
 .wcard .ws{font-size:12px;color:var(--mute)}
@@ -482,9 +483,13 @@ function idle(){
   $("left").textContent=hms(sumT());
   $("leftLab").textContent="totale duur";ring(1,false);
 }
+/* "Op maat": a training Claude made for him, published as plan.json next to the page (only blocks and a short
+   general reason, never health numbers). Shown as the first card while it is valid. */
+const OPMAAT="Op maat";
+const presetKeys=()=>Object.keys(PRESETS).sort((a,b)=>(b===OPMAAT)-(a===OPMAAT));
 (function(){
   const sel=$("pick");
-  sel.innerHTML=Object.keys(PRESETS).map(k=>`<option value="${k}">${NAMEN[k].n}</option>`).join("");
+  sel.innerHTML=presetKeys().map(k=>`<option value="${k}">${NAMEN[k].n}</option>`).join("");
   let last=null;try{last=localStorage.getItem("preset");}catch(e){}
   const use=k=>{if(!PRESETS[k])return;WORKOUT.splice(0,WORKOUT.length,...PRESETS[k].map(x=>({...x,rpm:[...x.rpm]})));
     sel.value=k;plan();idle();draw&&draw();try{localStorage.setItem("preset",k);}catch(e){}};
@@ -499,10 +504,10 @@ function showStart(open){
   document.querySelectorAll("#modeSeg button").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));
   $("modeHint").textContent=MODETXT[mode];
   const sel=$("pick").value;
-  $("cards").innerHTML=Object.keys(PRESETS).map(k=>{
+  $("cards").innerHTML=presetKeys().map(k=>{
     const st=PRESETS[k],T=st.reduce((a,x)=>a+x.min,0),mx=Math.max(...st.map(x=>x.watt));
     const bars=st.map(x=>`<i style="width:${(x.min/T*100).toFixed(1)}%;height:${Math.round(x.watt/mx*100)}%"></i>`).join("");
-    return `<button class="wcard${k===sel?" sel":""}" data-k="${k}"><div class="ws">${NAMEN[k].s}</div><div class="wn">${NAMEN[k].n}</div><div class="wbars">${bars}</div><div class="wd">${NAMEN[k].d}</div></button>`;
+    return `<button class="wcard${k===sel?" sel":""}" data-k="${k}"><div class="ws">${NAMEN[k].s}${k===OPMAAT&&opmaatDag===dayKey(new Date())?'<span class="wtag">vandaag</span>':""}</div><div class="wn">${NAMEN[k].n}</div><div class="wbars">${bars}</div><div class="wd">${NAMEN[k].d}</div></button>`;
   }).join("");
   document.querySelectorAll("#cards .wcard").forEach(c=>c.onclick=()=>{if(run)return;$("pick").value=c.dataset.k;$("pick").onchange();showStart();});
   $("startHint").textContent=!(tDev&&tDev.__ready)?"Verbind eerst je trainer, rechtsboven.":edgeOn()?"Daarna start je je workout op de Edge en trap je weg.":"De tijd loopt pas als je begint te trappen.";
@@ -1336,6 +1341,40 @@ function svEnd(fresh,rescued){
   if(show&&done)svDone(done);
 }
 
+let opmaatDag="";
+function dayKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function applyPlan(p){
+  const txt=(x,n)=>String(x==null?"":x).replace(/[<>&"]/g,"").slice(0,n);
+  const num=(x,lo,hi)=>{x=Number(x);return isFinite(x)&&x>=lo&&x<=hi?x:null;};
+  let st=null;
+  if(p&&Array.isArray(p.blokken)&&p.blokken.length&&p.blokken.length<=40&&String(p.tot||"")>=dayKey(new Date())){
+    st=p.blokken.map(b=>{const m=num(b.min,0.5,120),w=num(b.watt,40,400),r0=num(b.rpm&&b.rpm[0],40,130),r1=num(b.rpm&&b.rpm[1],40,130);
+      return m&&w&&r0&&r1&&r0<=r1?{name:txt(b.name,30)||"Blok",min:m,watt:Math.round(w),rpm:[r0,r1]}:null;});
+    if(st.some(x=>!x)||st.reduce((a,x)=>a+x.min,0)>150)st=null;
+  }
+  const sel=$("pick");
+  if(!st){
+    if(PRESETS[OPMAAT]){delete PRESETS[OPMAAT];delete NAMEN[OPMAAT];delete TITELS[OPMAAT];
+      if(!run&&sel.value===OPMAAT){sel.innerHTML=presetKeys().map(k=>`<option value="${k}">${NAMEN[k].n}</option>`).join("");sel.value="Halfuur makkelijk";sel.onchange();}}
+    return;
+  }
+  const T=Math.round(st.reduce((a,x)=>a+x.min,0));opmaatDag=txt(p.dag,10);
+  PRESETS[OPMAAT]=st;
+  NAMEN[OPMAAT]={n:txt(p.naam,30)||"Op maat",s:T+" min · op maat",d:txt(p.uitleg,160)};
+  TITELS[OPMAAT]=NAMEN[OPMAAT].n;
+  if(run)return;
+  const keep=sel.value;
+  sel.innerHTML=presetKeys().map(k=>`<option value="${k}">${NAMEN[k].n}</option>`).join("");
+  let want=keep;try{if(localStorage.getItem("preset")===OPMAAT)want=OPMAAT;}catch(e){}
+  if(opmaatDag===dayKey(new Date())&&localStorage.getItem("opmaatGekozen")!==opmaatDag){want=OPMAAT;try{localStorage.setItem("opmaatGekozen",opmaatDag);}catch(e){}}
+  sel.value=PRESETS[want]?want:"Halfuur makkelijk";sel.dataset.cur=sel.value;
+  WORKOUT.splice(0,WORKOUT.length,...PRESETS[sel.value].map(x=>({...x,rpm:[...x.rpm]})));plan();idle();draw();
+  if($("pStart").classList.contains("show"))showStart();
+}
+try{applyPlan(JSON.parse(localStorage.getItem("opmaat")||"null"));}catch(e){}
+fetch("plan.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(p=>{
+  if(!p)return;try{localStorage.setItem("opmaat",JSON.stringify(p));}catch(e){}applyPlan(p);
+}).catch(()=>{});
 /* on opening: a ride without the Edge that was never saved is shown again */
 (function(){
   let r=kept(KEEP);if(!unsaved(r))r=kept(KEEP_OLD);
