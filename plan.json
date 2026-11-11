@@ -1,16 +1,15 @@
 {
-  "naam": "Lichte draaimolen",
-  "dag": "2026-11-11",
-  "tot": "2026-11-11",
-  "uitleg": "Rustige Z2 met drie stukjes van 2 minuten vlot trappen. Licht gehouden na een volle dag, zodat je fris blijft voor de rest van de week.",
+  "naam": "Rustig opbouwen",
+  "dag": "2026-11-12",
+  "tot": "2026-11-12",
+  "uitleg": "Rustige Z2 die heel licht opbouwt, met korte stukjes wat trager draaien. Licht gehouden zodat je benen soepel blijven.",
   "blokken": [
     {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Z2", "min": 5, "watt": 122, "rpm": [85, 95]},
-    {"name": "1 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
-    {"name": "2 · Z2", "min": 5, "watt": 125, "rpm": [85, 95]},
-    {"name": "2 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
-    {"name": "3 · Z2", "min": 5, "watt": 125, "rpm": [85, 95]},
-    {"name": "3 · Vlot", "min": 2, "watt": 115, "rpm": [95, 105]},
-    {"name": "Uitbollen", "min": 4, "watt": 100, "rpm": [85, 95]}
+    {"name": "1 · Z2", "min": 6, "watt": 120, "rpm": [85, 95]},
+    {"name": "1 · Trager draaien", "min": 2, "watt": 125, "rpm": [75, 85]},
+    {"name": "2 · Z2", "min": 6, "watt": 127, "rpm": [85, 95]},
+    {"name": "2 · Trager draaien", "min": 2, "watt": 130, "rpm": [75, 85]},
+    {"name": "3 · Z2", "min": 6, "watt": 132, "rpm": [85, 95]},
+    {"name": "Uitbollen", "min": 3, "watt": 100, "rpm": [85, 95]}
   ]
 }
