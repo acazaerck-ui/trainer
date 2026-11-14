@@ -1,22 +1,13 @@
 {
-  "naam": "Zaterdagse duurrit",
-  "dag": "2026-11-14",
-  "tot": "2026-11-14",
-  "uitleg": "Rustige lange Z2 van ruim een uur met drie keer kort zwaar en snel trappen. Gelijkmatig rijden, de cadansblokjes zijn kort gehouden.",
+  "naam": "Zondags hersteltje",
+  "dag": "2026-11-15",
+  "tot": "2026-11-15",
+  "uitleg": "Een korte, heel lichte rit om soepel in beweging te blijven. Geen lange weekendrit deze keer, hou het makkelijk.",
   "blokken": [
-    {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Z2", "min": 12, "watt": 125, "rpm": [85, 95]},
-    {"name": "1 · Zwaar trappen", "min": 2, "watt": 135, "rpm": [60, 70]},
-    {"name": "1 · Z2 tussen", "min": 3, "watt": 125, "rpm": [85, 95]},
-    {"name": "1 · Snel draaien", "min": 2, "watt": 120, "rpm": [100, 110]},
-    {"name": "2 · Z2", "min": 12, "watt": 130, "rpm": [85, 95]},
-    {"name": "2 · Zwaar trappen", "min": 2, "watt": 135, "rpm": [60, 70]},
-    {"name": "2 · Z2 tussen", "min": 3, "watt": 130, "rpm": [85, 95]},
-    {"name": "2 · Snel draaien", "min": 2, "watt": 125, "rpm": [100, 110]},
-    {"name": "3 · Z2", "min": 12, "watt": 132, "rpm": [85, 95]},
-    {"name": "3 · Zwaar trappen", "min": 2, "watt": 135, "rpm": [60, 70]},
-    {"name": "3 · Z2 tussen", "min": 3, "watt": 130, "rpm": [85, 95]},
-    {"name": "3 · Snel draaien", "min": 2, "watt": 125, "rpm": [100, 110]},
-    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
+    {"name": "Inrijden", "min": 5, "watt": 95, "rpm": [85, 95]},
+    {"name": "1 · Rustig draaien", "min": 7, "watt": 105, "rpm": [85, 95]},
+    {"name": "1 · Losjes", "min": 2, "watt": 100, "rpm": [90, 100]},
+    {"name": "2 · Rustig draaien", "min": 7, "watt": 108, "rpm": [85, 95]},
+    {"name": "Uitbollen", "min": 4, "watt": 90, "rpm": [85, 95]}
   ]
 }
