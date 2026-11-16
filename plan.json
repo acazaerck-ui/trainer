@@ -1,13 +1,16 @@
 {
-  "naam": "Zondags hersteltje",
-  "dag": "2026-11-15",
-  "tot": "2026-11-15",
-  "uitleg": "Een korte, heel lichte rit om soepel in beweging te blijven. Geen lange weekendrit deze keer, hou het makkelijk.",
+  "naam": "Rustig weer op gang",
+  "dag": "2026-11-17",
+  "tot": "2026-11-17",
+  "uitleg": "Een rustige Z2-rit om weer in het ritme te komen, met drie korte stukjes soepel draaien. Hou het makkelijk.",
   "blokken": [
-    {"name": "Inrijden", "min": 5, "watt": 95, "rpm": [85, 95]},
-    {"name": "1 · Rustig draaien", "min": 7, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Losjes", "min": 2, "watt": 100, "rpm": [90, 100]},
-    {"name": "2 · Rustig draaien", "min": 7, "watt": 108, "rpm": [85, 95]},
-    {"name": "Uitbollen", "min": 4, "watt": 90, "rpm": [85, 95]}
+    {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
+    {"name": "1 · Z2", "min": 6, "watt": 118, "rpm": [85, 95]},
+    {"name": "1 · Souplesse", "min": 1, "watt": 110, "rpm": [100, 110]},
+    {"name": "2 · Z2", "min": 6, "watt": 122, "rpm": [85, 95]},
+    {"name": "2 · Souplesse", "min": 1, "watt": 110, "rpm": [100, 110]},
+    {"name": "3 · Z2", "min": 6, "watt": 122, "rpm": [85, 95]},
+    {"name": "3 · Souplesse", "min": 1, "watt": 110, "rpm": [100, 110]},
+    {"name": "Uitbollen", "min": 4, "watt": 95, "rpm": [85, 95]}
   ]
 }
