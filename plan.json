@@ -1,13 +1,13 @@
 {
-  "naam": "Licht hersteltje",
-  "dag": "2026-11-18",
-  "tot": "2026-11-18",
-  "uitleg": "Een heel korte en lichte rit om de benen los te draaien. Voel je je niet goed, sla hem dan gerust over.",
+  "naam": "Rustig herstel",
+  "dag": "2026-11-19",
+  "tot": "2026-11-19",
+  "uitleg": "Een korte, rustige rit om weer wat in beweging te komen. Hou het licht, en sla hem gerust over als je je niet goed voelt.",
   "blokken": [
-    {"name": "Inrijden", "min": 5, "watt": 95, "rpm": [85, 95]},
-    {"name": "1 · Licht", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "Losjes draaien", "min": 2, "watt": 100, "rpm": [90, 100]},
-    {"name": "2 · Licht", "min": 5, "watt": 108, "rpm": [85, 95]},
-    {"name": "Uitbollen", "min": 5, "watt": 95, "rpm": [85, 95]}
+    {"name": "Inrijden", "min": 5, "watt": 100, "rpm": [85, 95]},
+    {"name": "1 · Rustig", "min": 6, "watt": 105, "rpm": [85, 95]},
+    {"name": "Vlot draaien", "min": 2, "watt": 105, "rpm": [92, 100]},
+    {"name": "2 · Rustig", "min": 6, "watt": 108, "rpm": [85, 95]},
+    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
   ]
 }
