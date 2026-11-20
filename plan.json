@@ -1,15 +1,14 @@
 {
-  "naam": "Voorzichtig opbouwen",
-  "dag": "2026-11-20",
-  "tot": "2026-11-20",
-  "uitleg": "Rustige Z2 met twee korte stukjes souplesse, om voorzichtig weer op te bouwen voor het weekend. Voel je je niet goed, hou het bij inrijden.",
+  "naam": "Weekendhersteltje",
+  "dag": "2026-11-21",
+  "tot": "2026-11-21",
+  "uitleg": "Kort en licht deze zaterdag, de lange rit wacht nog even. Gewoon losjes draaien; voel je je niet goed, sla hem gerust over.",
   "blokken": [
     {"name": "Inrijden", "min": 5, "watt": 100, "rpm": [85, 95]},
-    {"name": "1 · Z2", "min": 7, "watt": 112, "rpm": [85, 95]},
-    {"name": "1 · Souplesse", "min": 1, "watt": 110, "rpm": [100, 110]},
-    {"name": "2 · Z2", "min": 7, "watt": 115, "rpm": [85, 95]},
-    {"name": "2 · Souplesse", "min": 1, "watt": 110, "rpm": [100, 110]},
-    {"name": "3 · Z2", "min": 5, "watt": 115, "rpm": [85, 95]},
-    {"name": "Uitbollen", "min": 4, "watt": 100, "rpm": [85, 95]}
+    {"name": "1 · Losjes", "min": 5, "watt": 105, "rpm": [85, 95]},
+    {"name": "1 · Rond draaien", "min": 2, "watt": 105, "rpm": [78, 86]},
+    {"name": "2 · Losjes", "min": 5, "watt": 108, "rpm": [85, 95]},
+    {"name": "2 · Rond draaien", "min": 2, "watt": 105, "rpm": [78, 86]},
+    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
   ]
 }
