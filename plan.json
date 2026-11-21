@@ -1,14 +1,15 @@
 {
-  "naam": "Weekendhersteltje",
-  "dag": "2026-11-21",
-  "tot": "2026-11-21",
-  "uitleg": "Kort en licht deze zaterdag, de lange rit wacht nog even. Gewoon losjes draaien; voel je je niet goed, sla hem gerust over.",
+  "naam": "Zondags rondje",
+  "dag": "2026-11-22",
+  "tot": "2026-11-22",
+  "uitleg": "Nog even kort en licht deze zondag, de lange rit komt terug. Voel je je echt top, kies dan gerust de Zondagse klassieker.",
   "blokken": [
     {"name": "Inrijden", "min": 5, "watt": 100, "rpm": [85, 95]},
-    {"name": "1 · Losjes", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Rond draaien", "min": 2, "watt": 105, "rpm": [78, 86]},
-    {"name": "2 · Losjes", "min": 5, "watt": 108, "rpm": [85, 95]},
-    {"name": "2 · Rond draaien", "min": 2, "watt": 105, "rpm": [78, 86]},
+    {"name": "1 · Losjes", "min": 4, "watt": 106, "rpm": [85, 95]},
+    {"name": "1 · Vlot draaien", "min": 2, "watt": 106, "rpm": [92, 100]},
+    {"name": "2 · Losjes", "min": 4, "watt": 108, "rpm": [85, 95]},
+    {"name": "2 · Vlot draaien", "min": 2, "watt": 106, "rpm": [92, 100]},
+    {"name": "3 · Losjes", "min": 3, "watt": 106, "rpm": [85, 95]},
     {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
   ]
 }
