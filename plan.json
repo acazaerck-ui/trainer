@@ -1,14 +1,15 @@
 {
-  "naam": "Kalme dinsdag",
-  "dag": "2026-11-24",
-  "tot": "2026-11-24",
-  "uitleg": "Een kalme Z2 om het lijf wat rust te gunnen, met twee korte stukjes vlot draaien. Dinsdag is fitness, dus deze rit is optioneel.",
+  "naam": "Woensdag op ritme",
+  "dag": "2026-11-25",
+  "tot": "2026-11-25",
+  "uitleg": "Een gewone Z2 met wat afwisseling in cadans: even rond trappen, even snel draaien. Woensdag is loopband, dus deze rit is optioneel.",
   "blokken": [
     {"name": "Inrijden", "min": 5, "watt": 105, "rpm": [85, 95]},
-    {"name": "1 · Z2", "min": 8, "watt": 110, "rpm": [85, 95]},
-    {"name": "1 · Vlot", "min": 2, "watt": 108, "rpm": [95, 105]},
-    {"name": "2 · Z2", "min": 8, "watt": 112, "rpm": [85, 95]},
-    {"name": "2 · Vlot", "min": 2, "watt": 108, "rpm": [95, 105]},
-    {"name": "Uitbollen", "min": 5, "watt": 100, "rpm": [85, 95]}
+    {"name": "1 · Z2", "min": 6, "watt": 118, "rpm": [85, 95]},
+    {"name": "1 · Rond trappen", "min": 2, "watt": 125, "rpm": [72, 80]},
+    {"name": "2 · Z2", "min": 6, "watt": 120, "rpm": [85, 95]},
+    {"name": "1 · Snel draaien", "min": 2, "watt": 115, "rpm": [100, 108]},
+    {"name": "3 · Z2", "min": 5, "watt": 122, "rpm": [85, 95]},
+    {"name": "Uitbollen", "min": 4, "watt": 100, "rpm": [85, 95]}
   ]
 }
