@@ -1,15 +1,1 @@
-{
-  "naam": "Kalme donderdag",
-  "dag": "2026-11-26",
-  "tot": "2026-11-26",
-  "uitleg": "Heel licht en kort, gewoon de benen laten draaien met twee soepele minuutjes. Donderdag is fitness, dus overslaan mag ook.",
-  "blokken": [
-    {"name": "Inrijden", "min": 5, "watt": 100, "rpm": [85, 95]},
-    {"name": "1 · Herstel", "min": 4, "watt": 104, "rpm": [85, 95]},
-    {"name": "1 · Soepel", "min": 1, "watt": 100, "rpm": [95, 102]},
-    {"name": "2 · Herstel", "min": 4, "watt": 106, "rpm": [85, 95]},
-    {"name": "2 · Soepel", "min": 1, "watt": 100, "rpm": [95, 102]},
-    {"name": "3 · Herstel", "min": 3, "watt": 104, "rpm": [85, 95]},
-    {"name": "Uitbollen", "min": 4, "watt": 95, "rpm": [85, 95]}
-  ]
-}
+{"naam": "Vrijdags hersteltje", "dag": "2026-11-27", "tot": "2026-11-27", "uitleg": "Kort en licht gehouden, met wat afwisseling in het trappen, zodat je fris aan het weekend begint.", "blokken": [{"name": "Inrijden", "min": 5, "watt": 100, "rpm": [85, 95]}, {"name": "1 · Licht", "min": 4, "watt": 104, "rpm": [85, 95]}, {"name": "1 · Rond trappen", "min": 2, "watt": 106, "rpm": [80, 88]}, {"name": "2 · Licht", "min": 4, "watt": 106, "rpm": [85, 95]}, {"name": "2 · Vlot draaien", "min": 2, "watt": 104, "rpm": [95, 102]}, {"name": "3 · Licht", "min": 3, "watt": 104, "rpm": [85, 95]}, {"name": "Uitbollen", "min": 4, "watt": 100, "rpm": [85, 95]}]}
